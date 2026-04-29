@@ -6,6 +6,7 @@ dist/
 
 # Devvit CLI artifacts
 .devvit/
+!readme.md
 
 # Environment / secrets
 .env
@@ -34,6 +35,6 @@ yarn-error.log*
 
 # Lock files (keep one, ignore the others)
 # Uncomment whichever you're NOT using:
-# package-lock.json
+package-lock.json
 # yarn.lock
 # pnpm-lock.yaml
