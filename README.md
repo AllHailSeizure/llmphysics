@@ -2,7 +2,7 @@
 
 > A modular Reddit moderation-assistance bot for [r/LLMPhysics](https://reddit.com/r/LLMPhysics), built on the [Devvit](https://developers.reddit.com/docs) platform.
 
-**Version:** 2.0.0
+**Version:** 2.0.2
 **Platform:** @devvit/web v0.12.22+  
 **Subreddit:** r/LLMPhysics
 
@@ -77,9 +77,9 @@ These arrays are declared in `registry.ts` and wired to Hono routes, but contain
 
 | Array | Trigger | Endpoint | Notes |
 |-------|---------|----------|-------|
-| `APP_INSTALL` | `onAppInstall` | /internal/triggers/appinstall | Ready for future modules |
-| `APP_UPGRADE` | `onAppUpgrade` | /internal/triggers/appupgrade | Ready for future modules |
-| `MOD_ACTIONS` | `onModAction` | /internal/triggers/modacti | Ready for future modules |
+| `APP_INSTALL` | `onAppInstall` | /internal/triggers/a-pp-in-st-al-l | Ready for future modules |
+| `APP_UPGRADE` | `onAppUpgrade` | /internal/triggers/a-pp-up-gr-ad-e | Ready for future modules |
+| `MOD_ACTIONS` | `onModAction` | /internal/triggers/m-od-ac-ti-on | Ready for future modules |
 
 ---
 
@@ -385,6 +385,9 @@ When clicking posts that open in a new tab, the `?playtest=` parameter is lost â
 ---
 
 Created by u/AllHailSeizure for r/LLMPhysics.
+
+
+
 
 
 

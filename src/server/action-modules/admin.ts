@@ -3,6 +3,7 @@ import type { Hono } from 'hono';
 import { redis, reddit } from '@devvit/web/server';
 import type { MenuItemRequest, UiResponse } from '@devvit/web/shared';
 import { readAllSettings, writeSetting } from '../app-settings';
+import { readAllSettings, writeSetting, readSetting } from '../app-settings';
 import { appealKey, APPEAL_INDEX_KEY, type AppealRecord } from './appeal';
 import { CLIENT_BUNDLE } from '../generated/client-bundle';
 import { logger } from '../logger';
@@ -104,10 +105,18 @@ export function register(app: Hono): void {
       return c.json<UiResponse>({ showToast: 'You are not a moderator of this subreddit.' });
     }
 
+    const baseUrl = (await readSetting('appealBaseUrl', '')).trim();
+    if (!baseUrl) {
+      return c.json<UiResponse>({ 
+        showToast: 'Admin panel URL not configured. Please set the App Base URL in subreddit settings.' 
+      });
+    }
+
     const token = await createSession(username, subredditName);
     const origin = new URL(c.req.url).origin;
     log.info('Admin session created', { username, subredditName });
     return c.json<UiResponse>({ navigateTo: `${origin}/admin?session=${token}` });
+    return c.json<UiResponse>({ navigateTo: `${baseUrl}/admin?session=${token}` });
   });
 
   // ── SPA shell ────────────────────────────────────────────────────────────────

@@ -9,7 +9,8 @@ const WIKI_API = 'https://en.wikipedia.org/w/api.php';
 const WIKI_ARTICLE_BASE = 'https://en.wikipedia.org/wiki/';
 const USER_AGENT = 'llmphysics-bot/1.0 (Reddit bot; r/llmphysics)';
 const EXTRACT_MAX_CHARS = 600;
-const GEMINI_API = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent';
+const GEMINI_PRIMARY_API = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent';
+const GEMINI_FALLBACK_API = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -19,30 +20,54 @@ type WikiPage = {
   extract: string;
 };
 
-// ─── Groq term resolver ───────────────────────────────────────────────────────
+// ─── Gemini term resolver ─────────────────────────────────────────────────────
 
 async function geminiResolve(term: string, apiKey: string): Promise<string | null> {
   const prompt =
     `You are a Wikipedia title resolver for a physics/mathematics/AI subreddit.\n` +
-    `Given a user's search term, return the exact Wikipedia article title for the physics, ` +
-    `mathematics, or artificial intelligence concept they're asking about. Correct any spelling ` +
-    `errors and use proper Wikipedia title formatting (e.g. diacritics, capitalisation).\n` +
+    `Given a user's search term, identify the exact Wikipedia article title for that concept.\n` +
+    `CRITICAL: If the term is ambiguous, YOU MUST prioritize the article specifically related to ` +
+    `physics, mathematics, or artificial intelligence. Look for titles that include scientific ` +
+    `disambiguations (e.g., return "Observer effect (physics)" instead of "Observer effect").\n` +
+    `Correct any spelling errors and use proper Wikipedia title formatting (e.g. diacritics, capitalisation).\n` +
     `If the term is not a physics, mathematics, or AI concept, reply with exactly "none".\n` +
     `Reply with only the Wikipedia article title or "none" — nothing else.\n\n` +
     `Term: ${term}`;
 
-  const res = await fetch(GEMINI_API, {
+  const requestOptions = {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { maxOutputTokens: 30, temperature: 0 },
+      tools: [{ google_search: {} }],
+      generationConfig: { maxOutputTokens: 40, temperature: 0 },
     }),
-  });
+  };
+
+  let res = await fetch(GEMINI_PRIMARY_API, requestOptions);
+
+  // Fallback logic: If 2.5 is rate limited (429), try 3.1
+  if (res.status === 429) {
+    log.info('Gemini 2.5 RPD limit reached, falling back to 3.1');
+    res = await fetch(GEMINI_FALLBACK_API, requestOptions);
+  }
 
   if (!res.ok) throw new Error(`Gemini API ${res.status}`);
-  const data = await res.json() as { candidates: Array<{ content: { parts: Array<{ text: string }> } }> };
-  const result = (data.candidates[0]?.content.parts[0]?.text ?? '').trim();
+  
+  const data = await res.json() as any;
+  
+  // Check if grounding was actually used for debugging/testing
+  if (data.candidates?.[0]?.groundingMetadata) {
+    log.info('Search grounding used for resolution', { term });
+  }
+
+  const rawResult = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!rawResult) {
+    log.warn('Gemini returned no content', { term });
+    return null;
+  }
+
+  const result = rawResult.trim();
   return result.toLowerCase() === 'none' || result === '' ? null : result;
 }
 
@@ -106,14 +131,14 @@ registerCommand(
 
     const apiKey = (await settings.get<string>('geminiApiKey')) || undefined;
     if (!apiKey) {
-      log.warn('Groq API key not configured');
+      log.warn('Gemini API key not configured');
       return;
     }
 
     let replyText: string;
     try {
       const canonicalTitle = await geminiResolve(term, apiKey);
-      log.info('Groq resolved term', { term, canonicalTitle });
+      log.info('Gemini resolved term', { term, canonicalTitle });
 
       if (!canonicalTitle) {
         replyText = `"${term}" doesn't appear to be a physics, mathematics, or AI concept.`;

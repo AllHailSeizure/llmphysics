@@ -1,6 +1,6 @@
 {
   "name": "llmphysics-bot",
-  "version": "0.1.1",
+  "version": "2.0.2.5",
   "private": true,
   "scripts": {
     "build:client": "esbuild src/client/index.tsx --bundle --platform=browser --format=iife --target=es2020 --jsx=automatic --outfile=webroot/bundle.js",
@@ -26,3 +26,11 @@
     "typescript": "^5.0.0"
   }
 }
+
+
+
+
+
+
+
+

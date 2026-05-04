@@ -4,6 +4,9 @@
   "server": {
     "entry": "index.js"
   },
+  "dev":{
+    "subreddit": "llmphysics_dev"
+  },
   "permissions": {
     "http": {
       "domains": ["en.wikipedia.org", "generativelanguage.googleapis.com"]

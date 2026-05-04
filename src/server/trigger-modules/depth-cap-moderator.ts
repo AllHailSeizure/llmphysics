@@ -12,15 +12,16 @@ export async function run(event: OnCommentCreateRequest): Promise<void> {
   const cv2 = event.comment;
   if (!cv2) return;
 
-  const cap = await readSetting('depthCap', 10);
-  if (cap <= 0) return;
+  const rawCap = await readSetting('depthCap', 10);
+  const cap = Number(rawCap);
+  if (isNaN(cap) || cap <= 0) return;
 
   const signature = await readSetting('botSignature', '');
   const noticeBody = await readSetting(
     'depthCapNotice',
     'This comment has reached the maximum comment depth and locked. The comment was submitted for review and if found to be productive will be unlocked.',
   );
-  const notice = signature ? `${noticeBody}\n\n${signature}` : noticeBody;
+  const notice = (noticeBody || 'Depth cap reached.') + (signature ? `\n\n${signature}` : '');
 
   // Fast exit: direct reply to post is depth 1
   if (cv2.parentId.startsWith('t3_') && cap > 1) return;
