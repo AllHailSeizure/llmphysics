@@ -4,6 +4,9 @@
   "server": {
     "entry": "index.js"
   },
+  "dev":{
+    "subreddit": "llmphysics_dev"
+  },
   "permissions": {
     "http": {
       "domains": ["en.wikipedia.org", "generativelanguage.googleapis.com"]
@@ -20,23 +23,17 @@
     "onCommentCreate": "/internal/triggers/comment-create",
     "onPostReport": "/internal/triggers/post-report",
     "onCommentReport": "/internal/triggers/comment-report",
-    "onModAction": "/internal/triggers/mod-action"
+    "onModAction": "/internal/triggers/mod-action",
+    "onModMail": "/internal/triggers/mod-mail"
   },
   "menu": {
     "items": [
       {
-        "label": "Remove comment chain",
-        "description": "Remove this comment and all replies recursively",
+        "label": "Chain Mop",
+        "description": "Remove and/or lock this comment chain",
         "forUserType": "moderator",
         "location": "comment",
-        "endpoint": "/internal/menu/remove-comment-chain"
-      },
-      {
-        "label": "Lock comment chain",
-        "description": "Lock this comment and all replies recursively",
-        "forUserType": "moderator",
-        "location": "comment",
-        "endpoint": "/internal/menu/lock-comment-chain"
+        "endpoint": "/internal/menu/chain-mop"
       },
       {
         "label": "Apply saved response",
@@ -47,38 +44,32 @@
         "postFilter": "none"
       },
       {
-        "label": "Add saved response",
-        "description": "Create a new saved general response",
+        "label": "Saved responses",
+        "description": "Add, edit, or delete saved general responses",
         "forUserType": "moderator",
         "location": "subreddit",
-        "endpoint": "/internal/menu/add-saved-response",
+        "endpoint": "/internal/menu/saved-responses",
         "postFilter": "none"
       },
       {
-        "label": "Edit saved response",
-        "description": "Edit an existing saved general response",
+        "label": "Bot Settings",
+        "description": "Edit bot settings (depth cap, signature, appeal URL, etc.)",
         "forUserType": "moderator",
         "location": "subreddit",
-        "endpoint": "/internal/menu/edit-saved-response",
-        "postFilter": "none"
-      },
-      {
-        "label": "Delete saved response",
-        "description": "Delete a saved general response",
-        "forUserType": "moderator",
-        "location": "subreddit",
-        "endpoint": "/internal/menu/delete-saved-response",
-        "postFilter": "none"
+        "endpoint": "/internal/menu/bot-settings"
       }
     ]
   },
   "forms": {
+    "chain-mop":                  "/internal/forms/chain-mop",
+    "saved-response-manage":      "/internal/forms/saved-response/manage",
     "saved-response-select":      "/internal/forms/saved-response/step2",
     "saved-response-apply":       "/internal/forms/saved-response/apply",
     "saved-response-add":         "/internal/forms/saved-response/add",
     "saved-response-edit-select": "/internal/forms/saved-response/edit-select",
     "saved-response-edit-apply":  "/internal/forms/saved-response/edit-apply",
-    "saved-response-delete":      "/internal/forms/saved-response/delete"
+    "saved-response-delete":      "/internal/forms/saved-response/delete",
+    "bot-settings":               "/internal/forms/bot-settings"
   },
   "settings": {
     "global": {

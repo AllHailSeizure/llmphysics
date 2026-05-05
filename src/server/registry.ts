@@ -9,6 +9,7 @@ import type {
   PostReportHandler,
   CommentReportHandler,
   ModActionsHandler,
+  ModMailHandler,
   ModuleHandler,
 } from './types';
 
@@ -28,19 +29,23 @@ import './command-modules/define';
 // import { register as registerMyModule } from './action-modules/my-module';
 import { register as registerChainModerator } from './action-modules/chain-moderator';
 import { register as registerSavedResponses } from './action-modules/saved-responses';
+import { register as registerAdmin } from './action-modules/admin';
 import { run as runDepthCapModerator } from './trigger-modules/depth-cap-moderator';
 import { run as runSelfResponseModerator } from './trigger-modules/self-response-moderator';
+import { run as runAppealModerator } from './trigger-modules/appeal-moderator';
+import { run as runFloodAssistant } from './trigger-modules/flood-assistant';
 
 // ─── Trigger arrays ────────────────────────────────────────────────────────────
 // Add the imported run() to the appropriate array (one line per module).
 
 const APP_INSTALL:    AppInstallHandler[]    = [];
 const APP_UPGRADE:    AppUpgradeHandler[]    = [];
-const POST_SUBMIT:    PostSubmitHandler[]    = [runOnPost];
+const POST_SUBMIT:    PostSubmitHandler[]    = [runOnPost, runFloodAssistant];
 const COMMENT_CREATE: CommentCreateHandler[] = [runOnComment, runDepthCapModerator, runSelfResponseModerator];
 const POST_REPORT:    PostReportHandler[]    = [runOnPostReport];
 const COMMENT_REPORT: CommentReportHandler[] = [runOnCommentReport];
 const MOD_ACTIONS:    ModActionsHandler[]    = [];
+const MOD_MAIL:       ModMailHandler[]       = [runAppealModerator];
 
 // ─── Dispatch ──────────────────────────────────────────────────────────────────
 
@@ -69,6 +74,7 @@ const TRIGGER_ROUTES: Array<[string, AnyHandler[]]> = [
   ['post-report',    POST_REPORT],
   ['comment-report', COMMENT_REPORT],
   ['mod-action',     MOD_ACTIONS],
+  ['mod-mail',       MOD_MAIL],
 ];
 
 export function registerAll(app: Hono): void {
@@ -82,4 +88,5 @@ export function registerAll(app: Hono): void {
   // Menu modules — add one line per new menu module
   registerChainModerator(app);
   registerSavedResponses(app);
+  registerAdmin(app);
 }

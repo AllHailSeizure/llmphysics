@@ -1,5 +1,5 @@
 import type { Hono } from 'hono';
-import { reddit } from '@devvit/web/server';
+import { redis, reddit } from '@devvit/web/server';
 import type { MenuItemRequest, UiResponse } from '@devvit/web/shared';
 import { logger, logZSet } from '../logger';
 import type { CommentId } from '../types';
@@ -7,52 +7,41 @@ import type { CommentId } from '../types';
 const log = logger('chain-moderator');
 const CHAIN_LOG_KEY = 'bot:chainmod:log';
 const CHAIN_LOG_MAX = 200;
+const SESSION_TTL = 300;
 
-async function collectSubtree(commentId: CommentId): Promise<CommentId[]> {
+type ChainMopSession = { targetId: string };
+type ChainMopFormValues = { remove: boolean; lock: boolean; skipDistinguished: boolean };
+
+function sessionKey(user: string): string {
+  return `bot:chainmod:session:${user}`;
+}
+
+async function setSession(user: string, data: ChainMopSession): Promise<void> {
+  const key = sessionKey(user);
+  await redis.set(key, JSON.stringify(data));
+  await redis.expire(key, SESSION_TTL);
+}
+
+async function getSession(user: string): Promise<ChainMopSession | null> {
+  const raw = await redis.get(sessionKey(user));
+  return raw ? (JSON.parse(raw) as ChainMopSession) : null;
+}
+
+async function collectSubtree(commentId: CommentId, skipDistinguished: boolean): Promise<CommentId[]> {
   const comment = await reddit.getCommentById(commentId);
   const ids: CommentId[] = [];
   const replies = await comment.replies.all();
   for (const reply of replies) {
-    const childIds = await collectSubtree(reply.id as CommentId);
+    const childIds = await collectSubtree(reply.id as CommentId, skipDistinguished);
     ids.push(...childIds);
   }
-  ids.push(commentId); // post-order: deepest children first
+  if (!skipDistinguished || comment.distinguishedBy == null) {
+    ids.push(commentId); // post-order: deepest children first
+  }
   return ids;
 }
 
-async function removeChain(targetId: CommentId): Promise<string> {
-  const mod = (await reddit.getCurrentUsername()) ?? 'unknown';
-  log.info('Remove chain triggered', { targetId, by: mod });
-
-  const ids = await collectSubtree(targetId);
-  let removed = 0;
-
-  for (const id of ids) {
-    try {
-      await reddit.remove(id, false);
-      removed++;
-    } catch (err) {
-      log.warn('Failed to remove comment', { id, error: (err as Error).message });
-    }
-  }
-
-  // Attach a removal note to the root so mods see the real initiator.
-  try {
-    await reddit.addRemovalNote({
-      itemIds: [targetId],
-      reasonId: 'other',
-      modNote: `Chain removed by u/${mod} via llmphysics-bot (${removed} comment${removed !== 1 ? 's' : ''})`,
-    });
-  } catch (err) {
-    log.warn('Could not add removal note', { error: (err as Error).message });
-  }
-
-  await logZSet(CHAIN_LOG_KEY, { action: 'remove_chain', targetId, by: mod, count: removed }, CHAIN_LOG_MAX);
-  log.info('Chain removed', { targetId, count: removed, by: mod });
-  return `Removed ${removed} comment${removed !== 1 ? 's' : ''}.`;
-}
-
-async function lockSubtree(commentId: CommentId): Promise<number> {
+async function lockSubtree(commentId: CommentId, skipDistinguished: boolean): Promise<number> {
   let comment;
   try {
     comment = await reddit.getCommentById(commentId);
@@ -63,46 +52,118 @@ async function lockSubtree(commentId: CommentId): Promise<number> {
   let count = 0;
   const replies = await comment.replies.all();
   for (const reply of replies) {
-    count += await lockSubtree(reply.id as CommentId);
+    count += await lockSubtree(reply.id as CommentId, skipDistinguished);
   }
-  if (!comment.locked) {
-    await comment.lock();
-    count++;
+  if (!comment.locked && (!skipDistinguished || comment.distinguishedBy == null)) {
+    try {
+      await comment.lock();
+      count++;
+    } catch (err) {
+      log.warn('Failed to lock comment', { id: commentId, error: (err as Error).message });
+    }
   }
   return count;
 }
 
-async function lockChain(targetId: CommentId): Promise<string> {
-  const mod = (await reddit.getCurrentUsername()) ?? 'unknown';
-  log.info('Lock chain triggered', { targetId, by: mod });
+export async function runChainMop(
+  targetId: CommentId,
+  opts: { remove: boolean; lock: boolean; skipDistinguished: boolean },
+  by = 'test',
+): Promise<{ removed: number; locked: number; removeFailed: boolean; lockFailed: boolean }> {
+  const { remove, lock, skipDistinguished } = opts;
+  let removed = 0;
+  let locked = 0;
+  let removeFailed = false;
+  let lockFailed = false;
 
-  const locked = await lockSubtree(targetId);
+  if (remove) {
+    try {
+      const ids = await collectSubtree(targetId, skipDistinguished);
+      for (const id of ids) {
+        try {
+          await reddit.remove(id, false);
+          removed++;
+        } catch (err) {
+          log.warn('Failed to remove comment', { id, error: (err as Error).message });
+        }
+      }
+      try {
+        await reddit.addRemovalNote({
+          itemIds: [targetId],
+          reasonId: 'other',
+          modNote: `Chain removed by u/${by} via llmphysics-bot (${removed} comment${removed !== 1 ? 's' : ''})`,
+        });
+      } catch (err) {
+        log.warn('Could not add removal note', { error: (err as Error).message });
+      }
+      await logZSet(CHAIN_LOG_KEY, { action: 'remove_chain', targetId, by, count: removed }, CHAIN_LOG_MAX);
+    } catch (err) {
+      log.error('Remove chain failed', err);
+      removeFailed = true;
+    }
+  }
 
-  await logZSet(CHAIN_LOG_KEY, { action: 'lock_chain', targetId, by: mod, count: locked }, CHAIN_LOG_MAX);
-  log.info('Chain locked', { targetId, count: locked, by: mod });
-  return `Locked ${locked} comment${locked !== 1 ? 's' : ''}.`;
+  if (lock) {
+    try {
+      locked = await lockSubtree(targetId, skipDistinguished);
+      await logZSet(CHAIN_LOG_KEY, { action: 'lock_chain', targetId, by, count: locked }, CHAIN_LOG_MAX);
+    } catch (err) {
+      log.error('Lock chain failed', err);
+      lockFailed = true;
+    }
+  }
+
+  return { removed, locked, removeFailed, lockFailed };
 }
 
 export function register(app: Hono): void {
-  app.post('/internal/menu/remove-comment-chain', async (c) => {
+  app.post('/internal/menu/chain-mop', async (c) => {
     const { targetId } = await c.req.json<MenuItemRequest>();
-    try {
-      const message = await removeChain(targetId as CommentId);
-      return c.json<UiResponse>({ showToast: { text: message, appearance: 'success' } });
-    } catch (err) {
-      log.error('removeChain failed', err);
-      return c.json<UiResponse>({ showToast: { text: 'Failed to remove chain.', appearance: 'neutral' } });
-    }
+    const mod = (await reddit.getCurrentUsername()) ?? 'unknown';
+    await setSession(mod, { targetId });
+    return c.json<UiResponse>({
+      showForm: {
+        name: 'chain-mop',
+        form: {
+          title: 'Chain Mop',
+          acceptLabel: 'Mop',
+          fields: [
+            { type: 'boolean', name: 'remove', label: 'Remove comments', defaultValue: true },
+            { type: 'boolean', name: 'lock', label: 'Lock comments', defaultValue: false },
+            { type: 'boolean', name: 'skipDistinguished', label: 'Skip distinguished comments', defaultValue: false },
+          ],
+        },
+      },
+    });
   });
 
-  app.post('/internal/menu/lock-comment-chain', async (c) => {
-    const { targetId } = await c.req.json<MenuItemRequest>();
-    try {
-      const message = await lockChain(targetId as CommentId);
-      return c.json<UiResponse>({ showToast: { text: message, appearance: 'success' } });
-    } catch (err) {
-      log.error('lockChain failed', err);
-      return c.json<UiResponse>({ showToast: { text: 'Failed to lock chain.', appearance: 'neutral' } });
+  app.post('/internal/forms/chain-mop', async (c) => {
+    const values = await c.req.json<ChainMopFormValues>();
+    const { remove, lock, skipDistinguished } = values;
+    const mod = (await reddit.getCurrentUsername()) ?? 'unknown';
+
+    if (!remove && !lock) {
+      return c.json<UiResponse>({ showToast: { text: 'No actions selected.', appearance: 'neutral' } });
     }
+
+    const session = await getSession(mod);
+    if (!session) {
+      return c.json<UiResponse>({ showToast: { text: 'Session expired. Try again.', appearance: 'neutral' } });
+    }
+    const targetId = session.targetId as CommentId;
+
+    log.info('Chain mop triggered', { targetId, by: mod, remove, lock, skipDistinguished });
+
+    const { removed, locked, removeFailed, lockFailed } = await runChainMop(targetId, { remove, lock, skipDistinguished }, mod);
+
+    const parts: string[] = [];
+    if (remove) parts.push(removeFailed ? 'Remove failed' : `Removed ${removed} comment${removed !== 1 ? 's' : ''}`);
+    if (lock)   parts.push(lockFailed   ? 'lock failed'   : `locked ${locked} comment${locked !== 1 ? 's' : ''}`);
+
+    const text = parts.join(', ') + '.';
+    const allFailed = removeFailed && lockFailed;
+    return c.json<UiResponse>({
+      showToast: { text: text.charAt(0).toUpperCase() + text.slice(1), appearance: allFailed ? 'neutral' : 'success' },
+    });
   });
 }

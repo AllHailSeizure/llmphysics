@@ -1,6 +1,7 @@
-import { reddit, settings } from '@devvit/web/server';
+import { reddit } from '@devvit/web/server';
 import type { OnCommentCreateRequest } from '@devvit/web/shared';
 import { logger, logZSet } from '../logger';
+import { readSetting } from '../app-settings';
 import type { CommentId } from '../types';
 
 const log = logger('depth-cap-moderator');
@@ -11,14 +12,16 @@ export async function run(event: OnCommentCreateRequest): Promise<void> {
   const cv2 = event.comment;
   if (!cv2) return;
 
-  const cap = (await settings.get<number>('depthCap')) ?? 10;
-  if (cap <= 0) return;
+  const rawCap = await readSetting('depthCap', 10);
+  const cap = Number(rawCap);
+  if (isNaN(cap) || cap <= 0) return;
 
-  const signature = (await settings.get<string>('botSignature')) ?? '';
-  const noticeBody =
-    (await settings.get<string>('depthCapNotice')) ||
-    'This comment has reached the maximum comment depth and locked. The comment was submitted for review and if found to be productive will be unlocked.';
-  const notice = signature ? `${noticeBody}\n\n${signature}` : noticeBody;
+  const signature = await readSetting('botSignature', '');
+  const noticeBody = await readSetting(
+    'depthCapNotice',
+    'This comment has reached the maximum comment depth and locked. The comment was submitted for review and if found to be productive will be unlocked.',
+  );
+  const notice = (noticeBody || 'Depth cap reached.') + (signature ? `\n\n${signature}` : '');
 
   // Fast exit: direct reply to post is depth 1
   if (cv2.parentId.startsWith('t3_') && cap > 1) return;
@@ -49,16 +52,6 @@ export async function run(event: OnCommentCreateRequest): Promise<void> {
   }
 
   if (!deepest.locked) await deepest.lock();
-
-  // Walk up locking each ancestor while it has no other children (linear chain)
-  let childId: string = deepest.id;
-  for (let i = 1; i < ancestors.length; i++) {
-    const parent = ancestors[i];
-    const siblings = await parent.replies.all();
-    if (siblings.some(s => s.id !== childId)) break; // branch point — stop
-    if (!parent.locked) await parent.lock();
-    childId = parent.id;
-  }
 
   await logZSet(CAP_LOG_KEY, { commentId: cv2.id, cap }, CAP_LOG_MAX);
 }

@@ -12,7 +12,8 @@ export async function run(event: OnCommentCreateRequest): Promise<void> {
   const post = event.post;
   if (!cv2 || !post) return;
   if (!cv2.parentId.startsWith('t3_')) return; // not a top-level comment
-  if (cv2.author !== post.author) return;       // top-level, but not OP
+  const commentAuthorId = event.author?.id;
+  if (!commentAuthorId || commentAuthorId !== post.authorId) return; // top-level, but not OP
 
   log.info('OP top-level comment — removing and locking', { commentId: cv2.id, postId: post.id });
 
@@ -28,16 +29,6 @@ export async function run(event: OnCommentCreateRequest): Promise<void> {
     await comment.lock();
   } catch (err) {
     log.warn('lock failed', { error: (err as Error).message });
-  }
-
-  try {
-    await reddit.addRemovalNote({
-      itemIds: [cv2.id as CommentId],
-      reasonId: 'other',
-      modNote: 'OP self-response auto-removed by llmphysics-bot',
-    });
-  } catch (err) {
-    log.warn('removal note failed', { error: (err as Error).message });
   }
 
   await logZSet(SRM_LOG_KEY, { postId: post.id, commentId: cv2.id }, SRM_LOG_MAX);

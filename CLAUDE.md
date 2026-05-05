@@ -169,19 +169,15 @@ persisted to Redis under `bot:log:<level>` (capped at 500 entries) for future mo
 |------|------|---------|---------|
 | `trigger-modules/command.ts` | trigger | `onCommentCreate`, `onPostSubmit` | `!command` dispatcher |
 | `trigger-modules/depth-cap-moderator.ts` | trigger | `onCommentCreate` | Auto depth-cap enforcement |
+| `trigger-modules/self-response-moderator.ts` | trigger | `onCommentCreate` | Remove/lock OP top-level replies |
+| `trigger-modules/report-filter.ts` | trigger | `onCommentReport`, `onPostReport` | Auto-ignore reports on bot content |
+| `trigger-modules/appeal-moderator.ts` | trigger | `onModMail` | Handle `!remove` replies in appeal modmails |
+| `trigger-modules/flood-assistant.ts` | trigger | `onPostSubmit` | Remove posts exceeding per-user daily limit |
+| `command-modules/define.ts` | command | `!define [term]` | Wikipedia/Gemini definition lookup |
 | `action-modules/chain-moderator.ts` | action | menu click | Lock / remove comment chain |
-
-## Planned Modules (Future)
-
-| Module                  | Type    | Trigger              | Purpose                                      |
-|-------------------------|---------|----------------------|----------------------------------------------|
-| `rule-enforcer.ts`      | trigger | `onPostSubmit`       | Auto-remove posts violating subreddit rules  |
-| `flair-required.ts`     | trigger | `onPostSubmit`       | Remove unflaired posts after grace period    |
-| `spam-filter.ts`        | trigger | `onPostSubmit`       | Heuristic / LLM-assisted spam detection      |
-| `comment-filter.ts`     | trigger | `onCommentCreate`    | Filter low-effort or rule-breaking comments  |
-| `report-handler.ts`     | trigger | `onPostReport`       | Triage reported posts, notify mods           |
-| `mod-log.ts`            | trigger | `onModActions`       | Mirror mod actions to a structured log       |
-| `scheduled-cleanup.ts`  | trigger | scheduler (cron)     | Periodic housekeeping tasks                  |
+| `action-modules/saved-responses.ts` | action | menu click | Post/manage pre-written mod responses |
+| `action-modules/admin.ts` | action | menu click | Bot settings UI |
+| `action-modules/appeal.ts` | helper | called by saved-responses | Start appeal: lock post + send modmail |
 
 ---
 
@@ -196,11 +192,7 @@ persisted to Redis under `bot:log:<level>` (capped at 500 entries) for future mo
 
 # Devvit Documentation Reference
 
-See DEVVIT_REFERENCE.md` for devvit.json schema, Hono routing, triggers, Redis patterns, and API client usage.
-
-# Playtesting
-
-See PLAYTEST_FEEDBACK.md for feedback of the most recent playtest, and PLAYTEST_ARCHIVE.md
+See `.documentation/` for additional developer documentation including the test pipeline runbook.
 
 ---
 

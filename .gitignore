@@ -40,5 +40,7 @@ package-lock.json
 # pnpm-lock.yaml
 
 src/server/icons.ts
+src/server/generated/
+webroot/
 assets/chain-delete_icon.svg
 assets/chain-lock_icon.svg
