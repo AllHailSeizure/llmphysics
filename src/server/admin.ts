@@ -1,7 +1,7 @@
 import type { Hono } from 'hono';
 import type { UiResponse } from '@devvit/web/shared';
-import { readAllSettings, writeSetting } from '../app-settings';
-import { logger } from '../logger';
+import { readAllSettings, writeSetting } from './app-settings';
+import { logger } from './logger';
 
 const log = logger('admin');
 

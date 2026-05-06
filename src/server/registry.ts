@@ -16,7 +16,7 @@ import type {
 // ─── Trigger module imports ────────────────────────────────────────────────────
 // Add one import line per new trigger module, e.g.:
 // import { run as spamFilter } from './action-modules/spam-filter';
-import { runOnComment, runOnPost } from './trigger-modules/command';
+import { runOnComment, runOnPost } from './command';
 import { runOnCommentReport, runOnPostReport } from './trigger-modules/report-filter';
 
 // ─── Command module imports ────────────────────────────────────────────────────
@@ -29,10 +29,10 @@ import './command-modules/define';
 // import { register as registerMyModule } from './action-modules/my-module';
 import { register as registerChainModerator } from './action-modules/chain-moderator';
 import { register as registerSavedResponses } from './action-modules/saved-responses';
-import { register as registerAdmin } from './action-modules/admin';
+import { register as registerAdmin } from './admin';
 import { run as runDepthCapModerator } from './trigger-modules/depth-cap-moderator';
 import { run as runSelfResponseModerator } from './trigger-modules/self-response-moderator';
-import { run as runAppealModerator } from './trigger-modules/appeal-moderator';
+import { run as runAppealModerator } from './action-modules/appeal';
 import { run as runFloodAssistant } from './trigger-modules/flood-assistant';
 
 // ─── Trigger arrays ────────────────────────────────────────────────────────────

@@ -5,8 +5,8 @@ import type {
   CommandHandler,
   CommandEvent,
   RegisteredCommand,
-} from '../types';
-import { logger } from '../logger';
+} from './types';
+import { logger } from './logger';
 
 const log = logger('command');
 

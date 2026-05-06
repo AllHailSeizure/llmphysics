@@ -30,11 +30,11 @@ llmphysics-bot/
         ├── logger.ts              # Structured logger (level + module + timestamp)
         ├── types.ts               # Shared TypeScript types
         ├── registry.ts            # Module registry — THE file you edit to add a module
+        ├── app-settings.ts        # Shared settings read/write helpers
+        ├── admin.ts               # Bot settings UI (utility, not a feature module)
+        ├── command.ts             # !command dispatcher (utility, not a feature module)
         ├── trigger-modules/       # Activated by Reddit events (onCommentCreate, etc.)
-        │   ├── command.ts         # Command dispatcher (!command syntax)
-        │   └── depth-cap-moderator.ts  # Auto depth-cap enforcement
         ├── action-modules/        # Activated by overflow menu item clicks
-        │   └── chain-moderator.ts # Lock / remove comment chain
         └── command-modules/       # Activated by !commands via command.ts dispatcher
 ```
 
@@ -71,12 +71,12 @@ Activated by overflow menu item clicks. Export a `register(app)` function that m
 and declare matching items in `devvit.json` under `menu.items`.
 
 ### 3. Command modules (`command-modules/`)
-Activated by `!commandName` syntax in posts/comments, dispatched through `trigger-modules/command.ts`.
+Activated by `!commandName` syntax in posts/comments, dispatched through `command.ts`.
 Side-effect imports — calling `registerCommand()` at module scope is enough:
 
 ```typescript
 // src/server/command-modules/my-command.ts
-import { registerCommand } from '../trigger-modules/command';
+import { registerCommand } from '../command';
 
 registerCommand(
   { commandName: 'foo', contentType: 'comment', requiresArgument: false },
@@ -167,17 +167,16 @@ persisted to Redis under `bot:log:<level>` (capped at 500 entries) for future mo
 
 | File | Type | Trigger | Purpose |
 |------|------|---------|---------|
-| `trigger-modules/command.ts` | trigger | `onCommentCreate`, `onPostSubmit` | `!command` dispatcher |
+| `admin.ts` | utility | menu click | Bot settings UI (subreddit-level, not a feature module) |
+| `command.ts` | utility | `onCommentCreate`, `onPostSubmit` | `!command` dispatcher (infrastructure, not a feature) |
 | `trigger-modules/depth-cap-moderator.ts` | trigger | `onCommentCreate` | Auto depth-cap enforcement |
 | `trigger-modules/self-response-moderator.ts` | trigger | `onCommentCreate` | Remove/lock OP top-level replies |
 | `trigger-modules/report-filter.ts` | trigger | `onCommentReport`, `onPostReport` | Auto-ignore reports on bot content |
-| `trigger-modules/appeal-moderator.ts` | trigger | `onModMail` | Handle `!remove` replies in appeal modmails |
 | `trigger-modules/flood-assistant.ts` | trigger | `onPostSubmit` | Remove posts exceeding per-user daily limit |
 | `command-modules/define.ts` | command | `!define [term]` | Wikipedia/Gemini definition lookup |
 | `action-modules/chain-moderator.ts` | action | menu click | Lock / remove comment chain |
 | `action-modules/saved-responses.ts` | action | menu click | Post/manage pre-written mod responses |
-| `action-modules/admin.ts` | action | menu click | Bot settings UI |
-| `action-modules/appeal.ts` | helper | called by saved-responses | Start appeal: lock post + send modmail |
+| `action-modules/appeal.ts` | action + trigger | menu click / `onModMail` | Start appeal (lock post + send modmail); handle `!remove` reply |
 
 ---
 

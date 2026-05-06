@@ -1,6 +1,6 @@
 import { reddit, settings } from '@devvit/web/server';
 import { logger } from '../logger';
-import { registerCommand } from '../trigger-modules/command';
+import { registerCommand } from '../command';
 import type { CommandEvent } from '../types';
 
 const log = logger('define');
