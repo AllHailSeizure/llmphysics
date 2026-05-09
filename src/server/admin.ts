@@ -8,7 +8,9 @@ const log = logger('admin');
 type SettingsFormValues = {
   botSignature: string;
   depthCap: number;
-  depthCapNotice: string;
+  depthCapResponse: string;
+  floodAssistantResponse: string;
+  selfResponseResponse: string;
 };
 
 export function register(app: Hono): void {
@@ -27,7 +29,7 @@ export function register(app: Hono): void {
               type: 'paragraph',
               name: 'botSignature',
               label: 'Bot signature',
-              helpText: 'Appended to all bot comments. Leave blank for no signature.',
+              helpText: 'Enter plain text — each word is auto-formatted as superscript. Leave blank for no signature.',
               defaultValue: String(current.botSignature ?? ''),
               required: false,
             },
@@ -41,10 +43,26 @@ export function register(app: Hono): void {
             },
             {
               type: 'paragraph',
-              name: 'depthCapNotice',
-              label: 'Depth cap notice',
-              helpText: 'Message posted when a comment hits the depth cap.',
-              defaultValue: String(current.depthCapNotice ?? ''),
+              name: 'depthCapResponse',
+              label: 'Depth cap triggered comment',
+              helpText: 'Overrides the depth cap notice when set.',
+              defaultValue: String(current.depthCapResponse ?? ''),
+              required: false,
+            },
+            {
+              type: 'paragraph',
+              name: 'floodAssistantResponse',
+              label: 'Flood assistant triggered comment',
+              helpText: 'Posted when a post is removed for exceeding the flood limit. Bot signature is appended.',
+              defaultValue: String(current.floodAssistantResponse ?? ''),
+              required: false,
+            },
+            {
+              type: 'paragraph',
+              name: 'selfResponseResponse',
+              label: 'Self-response triggered comment',
+              helpText: 'Posted when OP\'s top-level self-reply is removed. Leave blank to remove silently.',
+              defaultValue: String(current.selfResponseResponse ?? ''),
               required: false,
             },
           ],
@@ -58,7 +76,9 @@ export function register(app: Hono): void {
     const values = await c.req.json<Partial<SettingsFormValues>>();
     if (values.botSignature !== undefined) await writeSetting('botSignature', values.botSignature);
     if (values.depthCap !== undefined) await writeSetting('depthCap', Number(values.depthCap));
-    if (values.depthCapNotice !== undefined) await writeSetting('depthCapNotice', values.depthCapNotice);
+    if (values.depthCapResponse !== undefined) await writeSetting('depthCapResponse', values.depthCapResponse);
+    if (values.floodAssistantResponse !== undefined) await writeSetting('floodAssistantResponse', values.floodAssistantResponse);
+    if (values.selfResponseResponse !== undefined) await writeSetting('selfResponseResponse', values.selfResponseResponse);
     log.info('Settings saved via form');
     return c.json<UiResponse>({ showToast: 'Settings saved.' });
   });

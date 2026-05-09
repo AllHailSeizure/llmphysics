@@ -1,7 +1,7 @@
 import { reddit, redis } from '@devvit/web/server';
 import type { OnPostSubmitRequest } from '@devvit/web/shared';
 import { logger, logZSet } from '../logger';
-import { readSetting } from '../app-settings';
+import { readSetting, formatSignature } from '../app-settings';
 import type { PostId } from '../types';
 
 const log = logger('flood-assistant');
@@ -17,13 +17,26 @@ export async function run(event: OnPostSubmitRequest): Promise<void> {
   const post = event.post;
   if (!post) return;
 
+  const dedupeKey = `bot:flood:handled:${post.id}`;
+  const claimed = await redis.set(dedupeKey, '1', { nx: true });
+  if (!claimed) {
+    log.warn('Duplicate trigger (redis dedup key already exists)', { postId: post.id, dedupeKey });
+    return;
+  }
+  try {
+    await redis.expire(dedupeKey, 3600);
+  } catch (err) {
+    log.warn('Failed to set expiration on dedup key', { dedupeKey, expireSeconds: 3600, error: (err as Error).message });
+  }
+
   const enabled = await readSetting('floodassistant:enabled', true);
   if (!enabled) return;
 
   const maxPosts = await readSetting('floodassistant:maxPosts', 1);
-  const replyMessage = await readSetting('floodassistant:replyMessage', '');
+  const floodAssistantResponse = await readSetting('floodAssistantResponse', '');
+  const rawSignature = await readSetting('botSignature', '');
 
-  const username = post.authorName;
+  const username = post.authorId;
   const now = Date.now();
   const key = windowKey(username);
 
@@ -35,7 +48,8 @@ export async function run(event: OnPostSubmitRequest): Promise<void> {
   if (count >= maxPosts) {
     const defaultMsg =
       `Your post has been removed.\n\nUsers are limited to ${maxPosts} post per 24 hours.`;
-    const msg = replyMessage || defaultMsg;
+    const rawMsg = floodAssistantResponse || defaultMsg;
+    const msg = rawMsg + formatSignature(rawSignature);
 
     try {
       const postObj = await reddit.getPostById(post.id as PostId);

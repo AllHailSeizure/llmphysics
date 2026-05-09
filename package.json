@@ -1,6 +1,6 @@
 {
   "name": "llmphysics-bot",
-  "version": "2.5.1.4",
+  "version": "2.5.1.12",
   "private": true,
   "scripts": {
     "build": "esbuild src/server/index.ts --bundle --platform=node --format=cjs --outfile=dist/server/index.js",
@@ -19,6 +19,14 @@
     "typescript": "^5.0.0"
   }
 }
+
+
+
+
+
+
+
+
 
 
 

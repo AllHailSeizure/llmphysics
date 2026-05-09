@@ -176,7 +176,53 @@ persisted to Redis under `bot:log:<level>` (capped at 500 entries) for future mo
 | `command-modules/define.ts` | command | `!define [term]` | Wikipedia/Gemini definition lookup |
 | `action-modules/chain-moderator.ts` | action | menu click | Lock / remove comment chain |
 | `action-modules/saved-responses.ts` | action | menu click | Post/manage pre-written mod responses |
-| `action-modules/appeal.ts` | action + trigger | menu click / `onModMail` | Start appeal (lock post + send modmail); handle `!remove` reply |
+
+---
+
+## Bot Signature Formatting
+
+The `botSignature` setting is automatically formatted when appended to bot replies across all modules that use it (depth-cap moderator, flood assistant, define command). Moderators enter plain text in Bot Settings, and the system:
+
+1. **Auto-superscripts each word**: `"I am a bot"` → `"^I ^am ^a ^bot"`
+2. **Prepends a horizontal rule**: adds `\n\n---\n\n` above the formatted signature for visual separation
+
+This is handled by the `formatSignature(raw: string)` export in `app-settings.ts`. The function:
+- Returns empty string on empty input (preserves "no signature" path)
+- Splits on any whitespace to handle textarea input gracefully
+- Returns the full formatted string ready to append to comments
+
+Any module that appends bot comments should use this pattern:
+```typescript
+const rawSignature = await readSetting('botSignature', '');
+const notice = noticeBody + formatSignature(rawSignature);
+```
+
+**Current consumers:** `depth-cap-moderator.ts`, `flood-assistant.ts`, `define.ts` (command module)
+
+---
+
+## Canned Response Pattern for Moderation Actions
+
+**Mandatory for all new trigger modules that take moderation actions (remove, lock, etc.).**
+
+When a trigger module takes an automated action, always expose an optional **canned response** setting with the naming convention `<featureName>Response`. This gives moderators a way to customize the response per-subreddit.
+
+**Implementation:**
+1. Add a setting to `devvit.json` under `settings.subreddit` with name `<featureName>Response`
+2. Add the key to `DEFAULTS` in `app-settings.ts` with an empty string default
+3. Add a form field in `admin.ts` to expose it in the bot-settings UI
+4. In the trigger module, read the setting and append it with the bot signature using `formatSignature()`:
+   ```typescript
+   const customResponse = await readSetting('<featureName>Response', '');
+   if (customResponse) {
+     const rawSignature = await readSetting('botSignature', '');
+     const notice = customResponse + formatSignature(rawSignature);
+     // Post via comment.reply(), postObj.addComment(), etc.
+   }
+   ```
+5. If the feature already had a default message, use the custom response as an override (check custom response first, fall back to default)
+
+**Examples:** `depthCapResponse`, `floodAssistantResponse`, `selfResponseResponse`
 
 ---
 

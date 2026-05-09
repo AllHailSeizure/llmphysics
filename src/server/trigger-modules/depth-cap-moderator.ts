@@ -1,7 +1,7 @@
-import { reddit } from '@devvit/web/server';
+import { reddit, redis } from '@devvit/web/server';
 import type { OnCommentCreateRequest } from '@devvit/web/shared';
 import { logger, logZSet } from '../logger';
-import { readSetting } from '../app-settings';
+import { readSetting, formatSignature } from '../app-settings';
 import type { CommentId } from '../types';
 
 const log = logger('depth-cap-moderator');
@@ -16,12 +16,23 @@ export async function run(event: OnCommentCreateRequest): Promise<void> {
   const cap = Number(rawCap);
   if (isNaN(cap) || cap <= 0) return;
 
-  const signature = await readSetting('botSignature', '');
-  const noticeBody = await readSetting(
-    'depthCapNotice',
-    'This comment has reached the maximum comment depth and locked. The comment was submitted for review and if found to be productive will be unlocked.',
-  );
-  const notice = (noticeBody || 'Depth cap reached.') + (signature ? `\n\n${signature}` : '');
+  const dedupeKey = `bot:dcmod:handled:${cv2.id}`;
+  const claimed = await redis.set(dedupeKey, '1', { nx: true });
+  if (!claimed) {
+    log.warn('Duplicate trigger (redis dedup key already exists)', { commentId: cv2.id, dedupeKey });
+    return;
+  }
+  try {
+    await redis.expire(dedupeKey, 3600);
+  } catch (err) {
+    log.warn('Failed to set expiration on dedup key', { dedupeKey, expireSeconds: 3600, error: (err as Error).message });
+  }
+  log.info('Depth cap dedup claim succeeded', { commentId: cv2.id, dedupeKey });
+
+  const rawSignature = await readSetting('botSignature', '');
+  const depthCapResponse = await readSetting('depthCapResponse', '');
+  const noticeBody = depthCapResponse || 'This comment has reached the maximum comment depth and locked.';
+  const notice = (noticeBody || 'Depth cap reached.') + formatSignature(rawSignature);
 
   // Fast exit: direct reply to post is depth 1
   if (cv2.parentId.startsWith('t3_') && cap > 1) return;

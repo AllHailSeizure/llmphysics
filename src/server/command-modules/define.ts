@@ -1,6 +1,7 @@
 import { reddit, settings } from '@devvit/web/server';
 import { logger } from '../logger';
 import { registerCommand } from '../command';
+import { readSetting, formatSignature } from '../app-settings';
 import type { CommandEvent } from '../types';
 
 const log = logger('define');
@@ -155,8 +156,9 @@ registerCommand(
       replyText = `Failed to look up "${term}" — please try again later.`;
     }
 
+    const rawSignature = await readSetting('botSignature', '');
     const comment = await reddit.getCommentById(commentId);
-    await comment.reply({ text: replyText });
+    await comment.reply({ text: replyText + formatSignature(rawSignature) });
     log.info('Definition reply posted', { term, commentId });
   },
 );

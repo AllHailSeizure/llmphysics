@@ -7,6 +7,7 @@ import type {
   RegisteredCommand,
 } from './types';
 import { logger } from './logger';
+import { redis } from '@devvit/web/server';
 
 const log = logger('command');
 
@@ -31,6 +32,14 @@ async function parseAndDispatch(
 
   const matches = [...body.matchAll(COMMAND_PATTERN)];
   if (matches.length === 0) return;
+
+  // Guard against duplicate command dispatch on the same content (handles platform retry delivery)
+  const contentId = contentType === 'comment' ? event.comment?.id : event.post?.id;
+  if (contentId) {
+    const claimed = await redis.set(`bot:cmd:${contentId}`, '1', { nx: true });
+    if (!claimed) return; // duplicate trigger delivery on same comment/post
+    await redis.expire(`bot:cmd:${contentId}`, 3600);
+  }
 
   for (const [, commandName, rawArgument] of matches) {
     const argument = rawArgument?.replace(/^[^a-zA-Z0-9()]+|[^a-zA-Z0-9()]+$/g, '');

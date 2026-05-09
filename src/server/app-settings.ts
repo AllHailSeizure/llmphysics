@@ -1,9 +1,11 @@
 import { redis } from '@devvit/web/server';
 
 const DEFAULTS: Record<string, string | number | boolean> = {
-  botSignature: '^I ^am ^a ^bot. ^This ^action ^was ^performed ^automatically. ^Contact ^the ^moderators ^if ^you ^have ^questions.',
+  botSignature: 'I am a bot. This action was performed automatically. Contact the moderators if you have questions.',
   depthCap: 10,
-  depthCapNotice: 'This comment has reached the maximum comment depth and locked. The comment was submitted for review and if found to be productive will be unlocked.',
+  depthCapResponse: '',
+  floodAssistantResponse: '',
+  selfResponseResponse: '',
 };
 
 export async function readSetting<T extends string | number | boolean>(
@@ -27,4 +29,12 @@ export async function readAllSettings(): Promise<Record<string, string | number 
     result[key] = await readSetting(key, defaultValue);
   }
   return result;
+}
+
+export function formatSignature(raw: string | undefined): string {
+  if (!raw) return '';
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+  const superscripted = trimmed.split(/\s+/).map(token => `^${token}`).join(' ');
+  return `\n\n---\n\n${superscripted}`;
 }

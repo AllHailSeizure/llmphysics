@@ -1,7 +1,6 @@
 import type { Hono } from 'hono';
 import { redis, reddit } from '@devvit/web/server';
 import type { MenuItemRequest, UiResponse } from '@devvit/web/shared';
-import { startAppeal } from './appeal';
 import { logger, logZSet } from '../logger';
 import type { CommentId, PostId } from '../types';
 
@@ -22,8 +21,7 @@ type FlairLike = {
 };
 
 type SelectFormValues = { responseId: string[] };
-type LockMode = 'none' | 'lock' | 'lock_appeal';
-type ApplyFormValues = { message: string; lock: string[] };
+type ApplyFormValues = { message: string; lock: boolean; distinguish: boolean; commenter: string[] };
 type AddFormValues = { title: string; body: string; location: string[] };
 type EditSelectFormValues = { responseId: string[] };
 type EditApplyFormValues = { title: string; body: string; location: string[] };
@@ -209,12 +207,9 @@ export function register(app: Hono): void {
       return c.json<UiResponse>({ showToast: 'Response not found.' });
     }
 
-    const lockOptions = [
-      { label: "Don't lock", value: 'none' },
-      { label: 'Lock', value: 'lock' },
-      ...(session.targetType === 'post'
-        ? [{ label: 'Lock and start appeal', value: 'lock_appeal' }]
-        : []),
+    const commenterOptions = [
+      { label: 'Bot', value: 'app' },
+      { label: 'Moderator (you)', value: 'user' },
     ];
 
     return c.json<UiResponse>({
@@ -225,6 +220,14 @@ export function register(app: Hono): void {
           acceptLabel: 'Submit',
           fields: [
             {
+              type: 'select',
+              name: 'commenter',
+              label: 'Post comment as',
+              options: commenterOptions,
+              defaultValue: ['app'],
+              required: true,
+            },
+            {
               type: 'paragraph',
               name: 'message',
               label: 'Message to user',
@@ -232,12 +235,16 @@ export function register(app: Hono): void {
               required: true,
             },
             {
-              type: 'select',
+              type: 'boolean',
+              name: 'distinguish',
+              label: 'Distinguish comment',
+              defaultValue: true,
+            },
+            {
+              type: 'boolean',
               name: 'lock',
-              label: 'Post action',
-              options: lockOptions,
-              defaultValue: ['none'],
-              required: true,
+              label: 'Lock target',
+              defaultValue: false,
             },
           ],
         },
@@ -246,8 +253,8 @@ export function register(app: Hono): void {
   });
 
   app.post('/internal/forms/saved-response/apply', async (c) => {
-    const { message, lock } = await c.req.json<ApplyFormValues>();
-    const lockMode = (lock[0] ?? 'none') as LockMode;
+    const { message, lock, distinguish, commenter } = await c.req.json<ApplyFormValues>();
+    const runAs = commenter[0] === 'user' ? 'USER' : 'APP';
     const mod = (await reddit.getCurrentUsername()) ?? 'unknown';
 
     const session = await getApplySession(mod);
@@ -258,20 +265,6 @@ export function register(app: Hono): void {
     const { targetId } = session;
     await redis.del(`bot:savedresponses:apply:${mod}`);
 
-    // ─── Lock and start appeal ─────────────────────────────────────────────────
-    if (lockMode === 'lock_appeal') {
-      if (!targetId.startsWith('t3_')) {
-        return c.json<UiResponse>({ showToast: 'Appeal can only be started on posts, not comments.' });
-      }
-      try {
-        await startAppeal(targetId);
-        await logZSet(LOG_KEY, { action: 'appeal', targetId, by: mod }, LOG_MAX);
-        return c.json<UiResponse>({ showToast: { text: 'Post locked. OP notified via modmail.', appearance: 'success' } });
-      } catch (err) {
-        log.error('Failed to start appeal', err);
-        return c.json<UiResponse>({ showToast: 'Failed to start appeal process.' });
-      }
-    }
 
     // ─── Standard response + optional lock ────────────────────────────────────
     try {
@@ -280,14 +273,18 @@ export function register(app: Hono): void {
       const reply = await reddit.submitComment({
         id: targetId as CommentId | PostId,
         text: expanded,
+        runAs,
       });
-      try {
-        await reply.distinguish();
-      } catch {
-        log.warn('Could not distinguish comment', { id: reply.id });
+
+      if (distinguish) {
+        try {
+          await reply.distinguish();
+        } catch {
+          log.warn('Could not distinguish comment', { id: reply.id });
+        }
       }
 
-      if (lockMode === 'lock') {
+      if (lock) {
         try {
           if (targetId.startsWith('t1_')) {
             const comment = await reddit.getCommentById(targetId as CommentId);
@@ -301,11 +298,14 @@ export function register(app: Hono): void {
         }
       }
 
-      await logZSet(LOG_KEY, { action: 'apply', targetId, lock: lockMode, by: mod }, LOG_MAX);
+      const actions: string[] = ['Response posted'];
+      if (lock) actions.push('thread locked');
+
+      await logZSet(LOG_KEY, { action: 'apply', targetId, lock, distinguish, commenter: runAs, by: mod }, LOG_MAX);
 
       return c.json<UiResponse>({
         showToast: {
-          text: lockMode === 'lock' ? 'Response posted and thread locked.' : 'Response posted.',
+          text: actions.join(' and ') + '.',
           appearance: 'success',
         },
       });
@@ -360,7 +360,7 @@ export function register(app: Hono): void {
                 type: 'select',
                 name: 'location',
                 label: 'Available on',
-                helpText: 'Lock & Appeal requires "Posts only".',
+                helpText: 'Choose where this response can be used.',
                 options: LOCATION_OPTIONS,
                 defaultValue: ['both'],
                 required: true,

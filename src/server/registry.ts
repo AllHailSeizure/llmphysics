@@ -34,7 +34,6 @@ import { register as registerSavedResponses } from './action-modules/saved-respo
 import { register as registerAdmin } from './admin';
 import { run as runDepthCapModerator } from './trigger-modules/depth-cap-moderator';
 import { run as runSelfResponseModerator } from './trigger-modules/self-response-moderator';
-import { run as runAppealModerator } from './action-modules/appeal';
 import { run as runFloodAssistant } from './trigger-modules/flood-assistant';
 
 // ─── Trigger arrays ────────────────────────────────────────────────────────────
@@ -47,7 +46,7 @@ const COMMENT_CREATE: CommentCreateHandler[] = [runOnComment, runDepthCapModerat
 const POST_REPORT:    PostReportHandler[]    = [runOnPostReport];
 const COMMENT_REPORT: CommentReportHandler[] = [runOnCommentReport];
 const MOD_ACTIONS:    ModActionsHandler[]    = [];
-const MOD_MAIL:       ModMailHandler[]       = [runAppealModerator];
+const MOD_MAIL:       ModMailHandler[]       = [];
 
 // ─── Dispatch ──────────────────────────────────────────────────────────────────
 

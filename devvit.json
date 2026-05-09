@@ -43,8 +43,8 @@
         "endpoint": "/internal/menu/chain-mop"
       },
       {
-        "label": "Apply saved response",
-        "description": "Post a saved general response to this content",
+        "label": "Saved responses",
+        "description": "Comment with with a canned response.",
         "forUserType": "moderator",
         "location": ["comment", "post"],
         "endpoint": "/internal/menu/apply-saved-response",
@@ -60,7 +60,7 @@
       },
       {
         "label": "Bot Settings",
-        "description": "Edit bot settings (depth cap, signature, appeal URL, etc.)",
+        "description": "Edit bot settings.",
         "forUserType": "moderator",
         "location": "subreddit",
         "endpoint": "/internal/menu/bot-settings"
@@ -92,7 +92,7 @@
         "type": "paragraph",
         "label": "General — Bot signature",
         "helpText": "Appended to all bot comments. Leave blank for no signature.",
-        "defaultValue": "^I ^am ^a ^bot. ^This ^action ^was ^performed ^automatically. ^Contact ^the ^moderators ^if ^you ^have ^questions."
+        "defaultValue": "I am a bot. This action was performed automatically. Contact the moderators if you have questions."
       },
       "depthCap": {
         "type": "number",
@@ -100,11 +100,20 @@
         "helpText": "Lock comment chains that reach this depth. Set to 0 to disable. Default: 10.",
         "defaultValue": 10
       },
-      "depthCapNotice": {
+      "depthCapResponse": {
         "type": "paragraph",
-        "label": "Chain Moderation — Depth cap notice",
-        "helpText": "Message the bot posts when a comment hits the depth cap.",
-        "defaultValue": "This comment has reached the maximum comment depth and locked. The comment was submitted for review and if found to be productive will be unlocked."
+        "label": "Chain Moderation — Depth cap triggered comment",
+        "helpText": "Commented when a comment reaches theh maximum depth cap."
+      },
+      "floodAssistantResponse": {
+        "type": "paragraph",
+        "label": "Flood Assistant — Flood assistant triggered comment",
+        "helpText": "Commented when the flood assistant is triggered."
+      },
+      "selfResponseResponse": {
+        "type": "paragraph",
+        "label": "Self-Response Moderator — Self-response triggered comment",
+        "helpText": "Commented when a user responds to their own post."
       }
     }
   },
