@@ -50,7 +50,6 @@ POST 2  (AllHailSeizure, same 24h window)
 | Submit c5 (depth 5) | `depth-cap-moderator` | `Depth cap reached` | c5 locked; c3/c4 NOT locked |
 | Chain Mop on c3 | `chain-moderator` | `Chain mop triggered` | c3 + subtree removed |
 | Apply Saved Response on c_bot | `saved-responses` | `Saved response applied` | bot reply on c_bot |
-| Start Appeal on POST 1 | `appeal` | `Appeal started` | post locked; modmail sent to AllHailSeizure |
 | Reply `!remove` to modmail | `appeal-moderator` | `Appeal: post removed` | post removed; modmail archived |
 | Submit POST 2 | `flood-assistant` | `Flood post removed` | post removed |
 
@@ -69,10 +68,6 @@ POST 2  (AllHailSeizure, same 24h window)
 **AllHailSeizure is a mod, so sees removed comment bodies.** A non-mod account sees `[removed]` for c1. Matters if you ever test with a non-mod account.
 
 **Report-filter only ignores reports on bot-authored comments.** `BOT_AUTHORS` in `report-filter.ts` must contain the bot's exact Reddit username.
-
-**Appeal modmail subject never changes.** The initial message is `Your post has been locked`. User replies to that thread — they do NOT start a new conversation. Reply body must be exactly `!remove`.
-
-**appeal-moderator reads the post URL from the first message body.** The post ID is parsed from the `[post](url)` markdown link in the bot's opening message.
 
 **Token expires between sessions.** HTTP 401 at step 1 means a stale token. Run **Devvit: Playtest** briefly to refresh `~/.devvit/token`.
 

@@ -7,7 +7,7 @@ import type { PostId } from '../types';
 const log = logger('flood-assistant');
 const LOG_KEY = 'bot:flood:log';
 const LOG_MAX = 200;
-const WINDOW_MS = 24 * 60 * 60 * 1000;
+const WINDOW_MS = 0 * 60 * 60 * 1000;
 
 function windowKey(username: string): string {
   return `bot:flood:posts:${username}`;
@@ -71,3 +71,4 @@ export async function run(event: OnPostSubmitRequest): Promise<void> {
 
   log.info('Post allowed', { username, postId: post.id, postsInWindow: count + 1, maxPosts });
 }
+

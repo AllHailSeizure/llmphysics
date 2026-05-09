@@ -278,7 +278,7 @@ export function register(app: Hono): void {
 
       if (distinguish) {
         try {
-          await reply.distinguish();
+          await reply.distinguish(true);
         } catch {
           log.warn('Could not distinguish comment', { id: reply.id });
         }
@@ -299,7 +299,7 @@ export function register(app: Hono): void {
       }
 
       const actions: string[] = ['Response posted'];
-      if (lock) actions.push('thread locked');
+      if (lock) actions.push('comment locked');
 
       await logZSet(LOG_KEY, { action: 'apply', targetId, lock, distinguish, commenter: runAs, by: mod }, LOG_MAX);
 

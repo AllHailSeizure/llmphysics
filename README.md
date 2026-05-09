@@ -1,60 +1,55 @@
-# llmphysics-bot — Moderator Guide
+# llmphysics-bot  2.6.1 — Moderator Guide
 
-A quick reference for moderators on what the bot does and how to use it.
-
----
-
-## Automatic behaviours
-
-These run on their own — you don't need to do anything.
-
-### Self-response moderator
-
-When the OP replies to their own post at the top level, the bot **removes and locks** that comment automatically. This keeps discussions from being dominated by the original poster's follow-ups.
-
-### Depth cap
-
-Comment chains are automatically locked once they reach the configured depth limit (default: 10, set in **Bot Settings**). Only the deepest comment gets locked — not the whole chain. The bot leaves a notice on the locked comment.
-
-### Report filter
-
-The bot's own comments get auto-ignored when reported. This stops mod queues from filling up with reports on bot messages.
-
-### Flood assistant
-
-If a user submits more posts in a 24-hour window than the configured limit (default: 1), the bot removes the extra posts automatically.
+A modular moderation-assistance bot for [r/LLMPhysics](https://reddit.com/r/LLMPhysics), built on the [Devvit](https://developers.reddit.com/docs) platform.
 
 ---
 
-## Mod menu tools
+## 1. Moderator Onboarding: How the Bot Works
 
-These appear in the three-dot overflow menu on comments, posts, and the subreddit header.
+This bot is designed to keep r/LLMPhysics clean and focused. It handles repetitive janitorial work automatically while providing powerful tools for manual intervention.
 
-### Chain Mop *(comment menu)*
+### Automatic Cleanup
+You don't need to lift a finger for these. The bot performs the following tasks in the background:
+*   **Self-Response Moderator:** Prevents the original poster from cluttering the top-level comment section by locking and removing their own follow-up comments.
+*   **Depth Cap:** Keeps conversations readable. Once a thread exceeds the configured depth limit, the bot automatically locks the deepest branch.
+*   **Flood Assistant:** Protects the sub from spam by limiting the number of posts a user can submit within a 24-hour window.
+*   **Report Filter:** Keeps your mod queue clean by automatically ignoring reports on the bot's own activity (in active testing, may not be 100% reliable).
 
-Removes and/or locks a comment and all its replies. Opens a form where you choose whether to remove, lock, or both. Useful for cleaning up off-topic threads quickly.
+### Manual Moderation Tools
+Available via the **Mod Shield** icon on posts and comments:
 
-### Apply saved response *(comment or post menu)*
+*   **Chain Mop:**
+    *   **What it does:** Recursively removes and/or locks an entire conversation thread.
+    *   **Pro-tip:** You can choose to **ignore distinguished comments** during the mop, ensuring you don't accidentally remove your own or your fellow moderators' notes.
 
-Posts a pre-written response on the selected comment or post. You pick from your saved response library in the form that pops up. Good for recurring rule violations where you want consistent wording.
-
-### Saved responses *(subreddit header menu)*
-
-Manage your saved response library — add new responses, edit existing ones, or delete old ones.
-
-### Bot Settings *(subreddit header menu)*
-
-Configure the bot's behaviour for this subreddit:
-
-| Setting | What it does | Default |
-|---------|-------------|---------|
-| **Bot signature** | Text appended to all bot comments | Standard "I am a bot" line |
-| **Maximum comment chain depth** | Locks chains at this depth; 0 = disabled | 10 |
-| **Depth cap notice** | Message posted when a chain hits the cap | Standard notice |
+*   **Saved Responses:**
+    *   **What it does:** Standardizes your community outreach.
+    *   **Flexible Deployment:** When applying a response, you can choose to post **as yourself** or **as the bot**.
+    *   **Distinguish:** You have full control to toggle the distinguish status on your response.
+    *   **Efficiency:** You can select to **lock the target comment** simultaneously when posting your response, saving you an extra step during rule enforcement.
 
 ---
 
-## !define command
+## 2. Bot Settings Reference
+
+Moderators can manage bot behavior in the **Bot Settings** menu (found under the Subreddit header overflow menu).
+
+### Global Settings
+*   **Bot Signature:** Appended to all bot comments in superscript with a horizontal rule for professional identification. Leave blank to disable.
+
+### Chain Moderation
+*   **Maximum Comment Chain Depth:** Limits how deep a conversation can go. (Default: 10; 0 to disable).
+*   **Depth Cap Notice:** The custom message the bot posts when it locks a chain at the depth limit.
+
+### Flood Assistant
+*   **Flood Assistant Triggered Comment:** The message the bot posts when it removes a submission due to flood limits.
+
+### Self-Response Moderator
+*   **Self-Response Triggered Comment:** The message the bot posts when it locks and removes an OP's top-level self-reply.
+
+---
+
+## 3. Interaction Commands
 
 Any user can trigger a definition by mentioning the bot in a comment:
 
@@ -62,27 +57,17 @@ Any user can trigger a definition by mentioning the bot in a comment:
 u/LLMPhysics-bot !define [term]
 ```
 
-The bot replies with a definition sourced from Wikipedia, resolved and summarised via Gemini. If Gemini can disambiguate the term (e.g. resolves "observer effect" to "Observer effect (physics)"), the reply title reflects that.
+The bot replies with a definition - it uses Gemini search grounding to find the most relevant Wikipedia article, and quotes directly from the page.
 
----
+##4. Future Features
 
-## Appeal system
+LLMPhysics-bot is in active development by u/AllHailSeizure. Any feedback is welcome. Current features being worked on include:
+    -Active/Reactive appeal
+    -LLMPhysics Bingo game
+    -LLM response detection
 
-When you use **Apply Saved Response** and trigger the appeal flow, the bot:
 
-1. Locks the post
-2. Sends a modmail to the post author: **"Your post has been locked"**
-3. The modmail explains they can reply `!remove` to remove their post
 
-When the author replies `!remove`:
-- The bot removes their post
-- Replies "Thanks!" to the modmail
-- Archives the modmail conversation
 
-The appeal window is **30 days**. Only the original post author can use the `!remove` reply.
 
----
 
-## Settings location
-
-**r/llmphysics → Mod Tools → llmphysics-bot** — or use the **Bot Settings** item in the subreddit overflow menu.

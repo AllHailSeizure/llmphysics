@@ -10,11 +10,15 @@
   "permissions": {
     "http": {
       "domains": ["en.wikipedia.org", "generativelanguage.googleapis.com"]
+    
     },
     "redis": true,
     "reddit": {
-      "enable": true
+      "enable": true,
+      "asUser": ["SUBMIT_COMMENT"],
+      "scope": "moderator"
     }
+    
   },
   "triggers": {
     "onAppInstall": "/internal/triggers/app-install",
@@ -102,13 +106,25 @@
       },
       "depthCapResponse": {
         "type": "paragraph",
-        "label": "Chain Moderation — Depth cap triggered comment",
+        "label": "Depth Cap Moderation — Depth cap triggered comment",
         "helpText": "Commented when a comment reaches theh maximum depth cap."
       },
       "floodAssistantResponse": {
         "type": "paragraph",
         "label": "Flood Assistant — Flood assistant triggered comment",
         "helpText": "Commented when the flood assistant is triggered."
+      },
+      "floodAssistantMaxPosts": {
+        "type": "number",
+        "label": "Flood Assistant — Max posts",
+        "helpText": "Maximum number of posts allowed within the time window. Default: 1.",
+        "defaultValue": 1
+      },
+      "floodAssistantWindowHours": {
+        "type": "number",
+        "label": "Flood Assistant — Window (hours)",
+        "helpText": "Time window in hours. Default: 24.",
+        "defaultValue": 24
       },
       "selfResponseResponse": {
         "type": "paragraph",
@@ -121,3 +137,4 @@
     "build": "npm run build"
   }
 }
+
