@@ -40,6 +40,20 @@ export interface RegisteredCommand {
   handler: CommandHandler;
 }
 
+// ─── Settings types ────────────────────────────────────────────────────────────
+
+export interface SettingDef {
+  key: string;
+  defaultValue: string | number | boolean;
+  field: object;
+}
+
+export interface SettingsMenu {
+  key: string;
+  label: string;
+  settings: SettingDef[];
+}
+
 // ─── Reddit ID branded types ───────────────────────────────────────────────────
 
 export type CommentId = `t1_${string}`;

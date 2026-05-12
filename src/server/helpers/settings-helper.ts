@@ -2,8 +2,10 @@ import { redis } from '@devvit/web/server';
 
 const DEFAULTS: Record<string, string | number | boolean> = {
   botSignature: 'I am a bot. This action was performed automatically. Contact the moderators if you have questions.',
+  depthCapModEnabled: true,
   depthCap: 10,
   depthCapResponse: '',
+  floodModEnabled: true,
   floodAssistantResponse: '',
   floodAssistantMaxPosts: 1,
   floodAssistantWindowHours: 24,
@@ -12,14 +14,19 @@ const DEFAULTS: Record<string, string | number | boolean> = {
   floodAssistantIgnoreAutoRemoved: true,
   floodAssistantIgnoreRemoved: true,
   floodAssistantIgnoreDeleted: true,
+  selfResponseModEnabled: true,
   selfResponseResponse: '',
   selfResponseIgnoreModerators: true,
   selfResponseIgnoreContributors: true,
+  lengthModEnabled: true,
   lengthModFlairId: '',
   lengthModMaxUnhostedLength: 0,
   lengthModMinHostedLength: 0,
   lengthModMaxUnhostedComment: '',
   lengthModMinHostedComment: '',
+  mopToolEnabled: true,
+  responseToolEnabled: true,
+  defineCommandEnabled: true,
 };
 
 export async function readSetting<T extends string | number | boolean>(

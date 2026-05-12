@@ -2,7 +2,8 @@ import type { Hono } from 'hono';
 import { redis, reddit } from '@devvit/web/server';
 import type { MenuItemRequest, UiResponse } from '@devvit/web/shared';
 import { logger, logZSet } from '../helpers/log-helper';
-import type { CommentId, PostId } from '../types';
+import { readSetting } from '../helpers/settings-helper';
+import type { CommentId, PostId, SettingDef } from '../types';
 
 const log = logger('response-tool');
 const REDIS_KEY = 'bot:savedresponses';
@@ -150,6 +151,9 @@ export function register(app: Hono): void {
   // ─── Apply flow ───────────────────────────────────────────────────────────
 
   app.post('/internal/menu/apply-saved-response', async (c) => {
+    const enabled = await readSetting('responseToolEnabled', true);
+    if (!enabled) return c.json<UiResponse>({ showToast: 'Saved Responses is disabled.' });
+
     const { targetId } = await c.req.json<MenuItemRequest>();
     const responses = await loadResponses();
 
@@ -580,3 +584,18 @@ export async function testSavedResponseFlow(targetId: string): Promise<void> {
     log.info('Saved response deleted', { id, title: 'Test SR Edit' });
   }
 }
+
+export const RESPONSE_TOOL_SETTINGS = {
+  enabled: [
+    {
+      key: 'responseToolEnabled',
+      defaultValue: true,
+      field: {
+        type: 'boolean',
+        name: 'responseToolEnabled',
+        label: 'Saved Responses',
+        helpText: 'Enable or disable saved responses.',
+      },
+    } as SettingDef,
+  ],
+};

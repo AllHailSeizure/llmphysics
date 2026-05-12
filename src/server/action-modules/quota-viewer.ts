@@ -28,6 +28,9 @@ async function getSession(mod: string): Promise<QuotaViewerSession | null> {
 export function register(app: Hono): void {
   // Menu item: open quota viewer
   app.post('/internal/menu/quota-viewer', async (c) => {
+    const enabled = await readSetting('floodModEnabled', true);
+    if (!enabled) return c.json<UiResponse>({ showToast: 'Flood Moderator is disabled.' });
+
     const mod = (await reddit.getCurrentUsername()) ?? 'unknown';
     await setSession(mod, { targetUsername: '' });
 
@@ -69,66 +72,67 @@ export function register(app: Hono): void {
       // Store username for next form
       await setSession(mod, { targetUsername: username });
 
-      const [maxPosts, windowHours, ignoreDeleted, ignoreRemoved, ignoreAutoRemoved] = await Promise.all([
+      const [maxPosts, windowHours, ignoreDeleted, ignoreRemoved, ignoreAutoRemoved, ignoreModerators, ignoreContributors] = await Promise.all([
         readSetting('floodAssistantMaxPosts', 1),
         readSetting('floodAssistantWindowHours', 24),
         readSetting('floodAssistantIgnoreDeleted', true),
         readSetting('floodAssistantIgnoreRemoved', true),
         readSetting('floodAssistantIgnoreAutoRemoved', true),
+        readSetting('floodAssistantIgnoreModerators', true),
+        readSetting('floodAssistantIgnoreContributors', true),
       ]);
 
       const status = await evaluateFloodStatus(user.id, user.username, maxPosts, windowHours, {
         ignoreDeleted,
         ignoreRemoved,
         ignoreAutoRemoved,
+        ignoreModerators,
+        ignoreContributors,
       });
 
       const nextPostStr = status.nextPostTime
-        ? status.nextPostTime.toLocaleString()
+        ? status.nextPostTime.toISOString()
         : 'Now';
 
-      const postList = status.validPosts.length > 0
-        ? status.validPosts
-            .map((p) => `${p.id}\n  Posted: ${p.createdAt.toLocaleString()}`)
-            .join('\n')
-        : '(none)';
-
-      const statusEmoji = status.exceedsQuota ? '🔴 BLOCKED' : '🟢 OK';
-      const quotaDisplay = `${status.validPostCount} / ${status.maxPosts}`;
+      const postFields = status.validPosts.length > 0
+        ? status.validPosts.map((p) => ({
+            type: 'string' as const,
+            name: `post_${p.id}`,
+            label: p.id,
+            defaultValue: p.includedInQuota ? 'Included In Quota' : 'Excluded From Quota',
+            helpText: `Created: ${p.createdAt.toISOString()}`,
+            disabled: true,
+          }))
+        : [{
+            type: 'string' as const,
+            name: 'no_posts',
+            label: 'No tracked posts',
+            defaultValue: 'No posts found in the current window',
+            disabled: true,
+          }];
 
       return c.json<UiResponse>({
         showForm: {
           name: 'quota-viewer-result',
           form: {
-            title: `${statusEmoji} ${username}`,
+            title: 'User Quota Information',
+            description: "This form shows the posts that are currently being tracked for the user, as well as whether those posts count towards the user's post quota.",
             acceptLabel: 'Search again',
             fields: [
               {
-                type: 'string',
-                name: 'quota',
-                label: 'Posts in window',
-                defaultValue: quotaDisplay,
+                type: 'paragraph',
+                name: 'header',
+                label: `Tracked Posts - ${username}`,
+                defaultValue: `${status.validPostCount} / ${status.maxPosts} quota posts`,
                 disabled: true,
               },
-              {
-                type: 'string',
-                name: 'window',
-                label: 'Time window',
-                defaultValue: `${status.windowHours} hours`,
-                disabled: true,
-              },
+              ...postFields,
               {
                 type: 'string',
                 name: 'nextPost',
-                label: 'Can post again',
+                label: 'Next Post Opportunity',
                 defaultValue: nextPostStr,
-                disabled: true,
-              },
-              {
-                type: 'paragraph',
-                name: 'posts',
-                label: 'Posts in quota',
-                defaultValue: postList,
+                helpText: 'This is when the user will have an empty spot in their post limit quota.',
                 disabled: true,
               },
             ],

@@ -3,11 +3,14 @@ import type { OnPostSubmitRequest, OnModActionRequest, OnPostDeleteRequest } fro
 import { logger } from '../helpers/log-helper';
 import { readSetting, formatSignature } from '../helpers/settings-helper';
 import { evaluateFloodStatus, trackFloodPost, markPostModRemoved, markPostAutoRemoved, markPostDeleted } from '../helpers/redis-helper';
-import type { PostId } from '../types';
+import type { PostId, SettingDef } from '../types';
 
 const log = logger('flood-moderator');
 
 export async function runQuotaCheck(event: OnPostSubmitRequest): Promise<void> {
+  const enabled = await readSetting('floodModEnabled', true);
+  if (!enabled) return;
+
   const post = event.post;
   const author = event.author;
   const subreddit = event.subreddit;
@@ -63,37 +66,43 @@ export async function runQuotaCheck(event: OnPostSubmitRequest): Promise<void> {
     return;
   }
 
-  if (ignoreModerators) {
-    try {
-      const modPerms = await user.getModPermissionsForSubreddit(subredditName);
-      if (modPerms.length > 0) {
-        log.info('Post ignored (author is moderator)', { postId, authorName });
-        return;
-      }
-    } catch (err) {
-      log.warn('Could not check moderator status', { error: (err as Error).message, authorName });
-    }
+  // Check mod/contributor status — stored in the hash so evaluation never needs the Reddit API
+  let isModerator = false;
+  let isApprovedUser = false;
+
+  try {
+    const modPerms = await user.getModPermissionsForSubreddit(subredditName);
+    isModerator = modPerms.length > 0;
+  } catch (err) {
+    log.warn('Could not check moderator status', { error: (err as Error).message, authorName });
   }
 
-  if (ignoreContributors) {
+  if (!isModerator) {
     try {
       const approved = await reddit.getApprovedUsers({ subredditName, username: authorName }).all();
-      if (approved.length > 0) {
-        log.info('Post ignored (author is approved contributor)', { postId, authorName });
-        return;
-      }
+      isApprovedUser = approved.length > 0;
     } catch (err) {
       log.warn('Could not check approved contributor status', { error: (err as Error).message, authorName });
     }
   }
 
-  // Evaluate quota BEFORE tracking so current post isn't counted against itself
+  // Track the post before evaluation so the hash exists — currentPostId excludes it from the count
+  try {
+    const createdAt = post.createdAt ? new Date(post.createdAt) : new Date();
+    await trackFloodPost(user.id, postId, createdAt, isModerator, isApprovedUser);
+  } catch (err) {
+    log.error('Failed to track post in Redis', err, { postId, userId: user.id });
+  }
+
+  // Evaluate quota — all exemption logic comes from hash flags, no Reddit API needed
   let status;
   try {
     status = await evaluateFloodStatus(user.id, user.username, maxPosts, windowHours, {
       ignoreDeleted,
       ignoreRemoved,
       ignoreAutoRemoved,
+      ignoreModerators,
+      ignoreContributors,
     }, postId);
   } catch (err) {
     log.error('Failed to evaluate flood status', err, { postId, authorName });
@@ -103,17 +112,11 @@ export async function runQuotaCheck(event: OnPostSubmitRequest): Promise<void> {
   log.info('Quota evaluated', {
     postId,
     authorName,
+    isModerator,
+    isApprovedUser,
     validPostCount: status.validPostCount,
     exceedsQuota: status.exceedsQuota,
   });
-
-  // Track the post always — future checks need the history even if post is about to be removed
-  try {
-    const createdAt = post.createdAt ? new Date(post.createdAt) : new Date();
-    await trackFloodPost(user.id, postId, createdAt);
-  } catch (err) {
-    log.error('Failed to track post in Redis', err, { postId, userId: user.id });
-  }
 
   if (!status.exceedsQuota) {
     log.info('Post allowed (under quota)', { postId, authorName });
@@ -202,3 +205,112 @@ export async function runOnPostDelete(event: OnPostDeleteRequest): Promise<void>
     log.error('Failed to track deletion', err, { postId });
   }
 }
+
+export const FLOOD_SETTINGS = {
+  enabled: [
+    {
+      key: 'floodModEnabled',
+      defaultValue: true,
+      field: {
+        type: 'boolean',
+        name: 'floodModEnabled',
+        label: 'Flood Moderator',
+        helpText: 'Enable or disable the flood moderator module.',
+      },
+    } as SettingDef,
+  ],
+  quota: [
+    {
+      key: 'floodAssistantMaxPosts',
+      defaultValue: 1,
+      field: {
+        type: 'number',
+        name: 'floodAssistantMaxPosts',
+        label: 'Max posts per window',
+        helpText: 'Maximum number of posts a user can make within the time window.',
+        required: false,
+      },
+    } as SettingDef,
+    {
+      key: 'floodAssistantWindowHours',
+      defaultValue: 24,
+      field: {
+        type: 'number',
+        name: 'floodAssistantWindowHours',
+        label: 'Time window (hours)',
+        helpText: 'Rolling time window in hours.',
+        required: false,
+      },
+    } as SettingDef,
+  ],
+  ignoreFlags: [
+    {
+      key: 'floodAssistantIgnoreModerators',
+      defaultValue: true,
+      field: {
+        type: 'boolean',
+        name: 'floodAssistantIgnoreModerators',
+        label: 'Ignore moderators',
+        helpText: 'Do not run a quota for moderators.',
+        required: false,
+      },
+    } as SettingDef,
+    {
+      key: 'floodAssistantIgnoreContributors',
+      defaultValue: true,
+      field: {
+        type: 'boolean',
+        name: 'floodAssistantIgnoreContributors',
+        label: 'Ignore approved submitters',
+        helpText: 'Do not run a quota for approved posters.',
+        required: false,
+      },
+    } as SettingDef,
+    {
+      key: 'floodAssistantIgnoreAutoRemoved',
+      defaultValue: true,
+      field: {
+        type: 'boolean',
+        name: 'floodAssistantIgnoreAutoRemoved',
+        label: 'Ignore bot-removed posts',
+        helpText: 'Do not include posts that are removed by the bot in the quota.',
+        required: false,
+      },
+    } as SettingDef,
+    {
+      key: 'floodAssistantIgnoreRemoved',
+      defaultValue: true,
+      field: {
+        type: 'boolean',
+        name: 'floodAssistantIgnoreRemoved',
+        label: 'Ignore mod-removed posts',
+        helpText: 'Do not include posts that are manually removed by mods in the quota.',
+        required: false,
+      },
+    } as SettingDef,
+    {
+      key: 'floodAssistantIgnoreDeleted',
+      defaultValue: true,
+      field: {
+        type: 'boolean',
+        name: 'floodAssistantIgnoreDeleted',
+        label: 'Ignore deleted posts',
+        helpText: 'Do not include posts that are deleted by the author in the quota.',
+        required: false,
+      },
+    } as SettingDef,
+  ],
+  response: [
+    {
+      key: 'floodAssistantResponse',
+      defaultValue: '',
+      field: {
+        type: 'paragraph',
+        name: 'floodAssistantResponse',
+        label: 'Flood removal message',
+        helpText: 'Posted when a user exceeds their posting quota.',
+        required: false,
+      },
+    } as SettingDef,
+  ],
+};

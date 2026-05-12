@@ -1,4 +1,4 @@
-# llmphysics-bot  2.6.3 — Moderator Guide
+# llmphysics-bot  2.7.0 — Moderator Guide
 
 A modular moderation-assistance bot for [r/LLMPhysics](https://reddit.com/r/LLMPhysics), built on the [Devvit](https://developers.reddit.com/docs) platform.
 
@@ -65,6 +65,7 @@ LLMPhysics-bot is in active development by u/AllHailSeizure. Any feedback is wel
     -Active/Reactive appeal
     -LLMPhysics Bingo game
     -LLM response detection
+
 
 
 

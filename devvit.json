@@ -57,11 +57,39 @@
         "postFilter": "none"
       },
       {
-        "label": "Bot Settings",
-        "description": "Edit bot settings.",
+        "label": "Settings — Modules",
+        "description": "Enable or disable modules.",
         "forUserType": "moderator",
         "location": "subreddit",
-        "endpoint": "/internal/menu/bot-settings"
+        "endpoint": "/internal/menu/bot-settings-modules"
+      },
+      {
+        "label": "Settings — Flood Moderator",
+        "description": "Configure flood moderator limits and filters.",
+        "forUserType": "moderator",
+        "location": "subreddit",
+        "endpoint": "/internal/menu/bot-settings-flood"
+      },
+      {
+        "label": "Settings — Commenting",
+        "description": "Configure depth cap and self-response rules.",
+        "forUserType": "moderator",
+        "location": "subreddit",
+        "endpoint": "/internal/menu/bot-settings-commenting"
+      },
+      {
+        "label": "Settings — Posting",
+        "description": "Configure post length limits.",
+        "forUserType": "moderator",
+        "location": "subreddit",
+        "endpoint": "/internal/menu/bot-settings-posting"
+      },
+      {
+        "label": "Settings — Removal Messages",
+        "description": "Configure bot signature and removal messages.",
+        "forUserType": "moderator",
+        "location": "subreddit",
+        "endpoint": "/internal/menu/bot-settings-removal-messages"
       },
       {
         "label": "Flood Quota Checker",
@@ -81,7 +109,11 @@
     "saved-response-edit-select": "/internal/forms/saved-response/edit-select",
     "saved-response-edit-apply":  "/internal/forms/saved-response/edit-apply",
     "saved-response-delete":      "/internal/forms/saved-response/delete",
-    "bot-settings":               "/internal/forms/bot-settings",
+    "bot-settings-modules":       "/internal/forms/bot-settings-modules",
+    "bot-settings-flood":         "/internal/forms/bot-settings-flood",
+    "bot-settings-commenting":    "/internal/forms/bot-settings-commenting",
+    "bot-settings-posting":       "/internal/forms/bot-settings-posting",
+    "bot-settings-removal-messages": "/internal/forms/bot-settings-removal-messages",
     "quota-viewer-search":        "/internal/forms/quota-viewer-search",
     "quota-viewer-result":        "/internal/forms/quota-viewer-result"
   },

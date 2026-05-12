@@ -25,12 +25,10 @@ import { run as runLengthModerator } from './trigger-modules/length-moderator';
 // Add one import line per new command module (side-effect: registers the command), e.g.:
 // import './command-modules/score-command';
 import './command-modules/define-command';
-// import './command-modules/bingo-card-command'; // TODO: enable when bingo module is ready
 
 // ─── Menu module imports ───────────────────────────────────────────────────────
 // Add one import line per new menu module, e.g.:
 // import { register as registerMyModule } from './action-modules/my-module';
-import { register as registerBingoGame } from './action-modules/bingo-game';
 import { register as registerMopTool } from './action-modules/mop-tool';
 import { register as registerResponseTool } from './action-modules/response-tool';
 import { register as registerQuotaViewer } from './action-modules/quota-viewer';
@@ -44,7 +42,7 @@ import { runQuotaCheck, runOnModAction as runFloodOnModAction, runOnPostDelete a
 
 const APP_INSTALL:    AppInstallHandler[]    = [];
 const APP_UPGRADE:    AppUpgradeHandler[]    = [];
-const POST_SUBMIT:    PostSubmitHandler[]    = [runOnPost]; // runQuotaCheck, runLengthModerator disabled
+const POST_SUBMIT:    PostSubmitHandler[]    = [runOnPost, runQuotaCheck, runLengthModerator];
 const COMMENT_CREATE: CommentCreateHandler[] = [runOnComment, runDepthCapModerator, runSelfResponseModerator];
 const POST_REPORT:    PostReportHandler[]    = [runOnPostReport];
 const COMMENT_REPORT: CommentReportHandler[] = [runOnCommentReport];
@@ -92,7 +90,6 @@ export function registerAll(app: Hono): void {
   }
 
   // Menu modules — add one line per new menu module
-  // registerBingoGame(app); // disabled
   registerMopTool(app);
   registerResponseTool(app);
   registerQuotaViewer(app);

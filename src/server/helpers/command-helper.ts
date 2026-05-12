@@ -73,6 +73,7 @@ export const runOnComment: CommentCreateHandler = async (event) => {
 };
 
 export const runOnPost: PostSubmitHandler = async (event) => {
+  log.info('runOnPost called', { postId: event.post?.id });
   const text = `${event.post?.title ?? ''} ${event.post?.selftext ?? ''}`;
   await parseAndDispatch(text, 'post', event);
 };

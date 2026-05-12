@@ -1,313 +1,124 @@
-# CLAUDE.md — llmphysics-bot Devvit App
+# CLAUDE.md
 
-This file contains reference documentation for the Devvit platform (Reddit's app framework)
-extracted from official documentation, plus the planned architecture for the llmphysics-bot app.
-
----
-
-# Bot Architecture (llmphysics-bot)
-
-## Design Goals
-
-`llmphysics-bot` is a modular, incrementally expandable moderation-assistance bot for r/llmphysics.
-It starts bare-bones and gains capabilities as new modules are added — without ever touching the
-core dispatch or entry-point files.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ---
 
-## File Structure
+## Commands
 
-```
-llmphysics-bot/
-├── devvit.json                    # App config: triggers, settings, menu items, permissions
-├── package.json
-├── tsconfig.json
-├── .gitignore
-├── CLAUDE.md                      # This file
-└── src/
-    └── server/
-        ├── index.ts               # Hono app — mounts all routes, never changes
-        ├── logger.ts              # Structured logger (level + module + timestamp)
-        ├── types.ts               # Shared TypeScript types
-        ├── registry.ts            # Module registry — THE file you edit to add a module
-        ├── app-settings.ts        # Shared settings read/write helpers
-        ├── admin.ts               # Bot settings UI (utility, not a feature module)
-        ├── command.ts             # !command dispatcher (utility, not a feature module)
-        ├── trigger-modules/       # Activated by Reddit events (onCommentCreate, etc.)
-        ├── action-modules/        # Activated by overflow menu item clicks
-        └── command-modules/       # Activated by !commands via command.ts dispatcher
+```bash
+npm run build        # compile TypeScript → dist/server/index.js (must run before playtest)
+devvit playtest r/llmphysics_dev   # upload bundle and stream logs (does NOT auto-build)
 ```
 
+Playtest URL (re-add manually when a post opens in a new tab):
+```
+https://www.reddit.com/r/llmphysics_dev/?playtest=llmphysics-bot
+```
+
+There is no test runner. Validation is done manually via `devvit logs` during playtest.
+
 ---
 
-## Module Types
+## Architecture
 
-Three kinds of modules, separated by what activates them:
+Reddit events → `devvit.json` → `POST /internal/triggers/<slug>` → `registry.ts` → `dispatch()` → each module's `run(event)`.
 
-### 1. Trigger modules (`trigger-modules/`)
-Activated by Reddit platform events. Export a single `run(event)` function.
+`index.ts` is 9 lines and never changes. `registry.ts` is the only file edited to add/remove modules.
+
+### Three module types
+
+**Trigger modules** (`trigger-modules/`) — activated by Reddit events. Export a single `run(event)` typed to their trigger.
+
+**Action modules** (`action-modules/`) — activated by overflow-menu clicks. Export `register(app: Hono)` that mounts Hono routes (`/internal/menu/<name>` and `/internal/forms/<name>`). Must also declare the menu item in `devvit.json`.
+
+**Command modules** (`command-modules/`) — activated by `u/LLMPhysics-bot !commandName [arg]` in posts/comments. Side-effect imports: call `registerCommand()` at module scope, then add a bare `import './command-modules/my-command'` to `registry.ts`.
+
+### Dispatch isolation
+
+`dispatch()` wraps each module in try/catch. A thrown error is logged and execution continues with the next module in the array.
+
+### Module enable/disable
+
+Every trigger module checks its enabled flag as its **first line** and returns early if off:
 
 ```typescript
-// src/server/trigger-modules/example-module.ts
-import { reddit } from '@devvit/web/server';
-import type { OnPostSubmitRequest } from '@devvit/web/shared';
-import { logger } from '../logger';
-
-const log = logger('example-module');
-
-export async function run(event: OnPostSubmitRequest): Promise<void> {
-  log.info('New post', { postId: event.post.id });
-}
+const enabled = await readSetting('myModEnabled', true);
+if (!enabled) return;
 ```
 
-Register in `registry.ts`:
+Naming convention: `<camelCasePrefix>Enabled` (e.g. `depthCapModEnabled`, `floodModEnabled`, `selfResponseModEnabled`, `lengthModEnabled`). Add the key to `DEFAULTS` in `settings-helper.ts` (default `true`) and a `boolean` field in `admin.ts`.
+
+### Adding a module (2 lines in `registry.ts`)
+
 ```typescript
+// Trigger module
 import { run as myModule } from './trigger-modules/my-module';
-const POST_SUBMIT: PostSubmitHandler[] = [myModule];
-```
+const POST_SUBMIT: PostSubmitHandler[] = [...existing, myModule];
 
-### 2. Action modules (`action-modules/`)
-Activated by overflow menu item clicks. Export a `register(app)` function that mounts Hono routes,
-and declare matching items in `devvit.json` under `menu.items`.
+// Action module
+import { register as registerMyModule } from './action-modules/my-module';
+// inside registerAll(): registerMyModule(app);
 
-### 3. Command modules (`command-modules/`)
-Activated by `!commandName` syntax in posts/comments, dispatched through `command.ts`.
-Side-effect imports — calling `registerCommand()` at module scope is enough:
-
-```typescript
-// src/server/command-modules/my-command.ts
-import { registerCommand } from '../command';
-
-registerCommand(
-  { commandName: 'foo', contentType: 'comment', requiresArgument: false },
-  async (event, arg) => { /* handler */ }
-);
-```
-
-Register in `registry.ts` with a side-effect import:
-```typescript
-import '../command-modules/my-command';
+// Command module
+import './command-modules/my-command';   // side-effect — runs registerCommand() at module scope
 ```
 
 ---
 
-## Adding a New Trigger Module (2 lines of code)
+## Settings System
 
-Open `src/server/registry.ts` and add:
+Runtime settings are stored in Redis under `settings:<key>`. All reads/writes go through `helpers/settings-helper.ts`:
 
-```typescript
-// Line 1 — import at the top
-import { run as myNewModule } from './trigger-modules/my-new-module';
+- `readSetting(key, defaultValue)` — reads from Redis, casts to the type of `defaultValue`
+- `writeSetting(key, value)` — writes to Redis as a string
+- `readAllSettings()` — reads every key in `DEFAULTS`
+- `formatSignature(raw)` — superscripts each word and prepends `---`; returns `''` on empty input
 
-// Line 2 — register under the right trigger array
-const POST_SUBMIT: PostSubmitHandler[] = [myNewModule];
-```
+**Adding a new setting:** add it to `DEFAULTS` in `settings-helper.ts`, add a form field in `admin.ts`, and (if platform-level) add it to `devvit.json`.
 
-`index.ts` and `devvit.json` do **not** need to change for an existing trigger type.
-
----
-
-## Registry Structure
-
-`registry.ts` exports one typed array per trigger:
-
-| Export             | Trigger            | Description                          |
-|--------------------|--------------------|--------------------------------------|
-| `APP_INSTALL`      | `onAppInstall`     | Bot installed on a subreddit         |
-| `APP_UPGRADE`      | `onAppUpgrade`     | Bot version updated                  |
-| `POST_SUBMIT`      | `onPostSubmit`     | New post submitted                   |
-| `COMMENT_CREATE`   | `onCommentCreate`  | New comment created                  |
-| `POST_REPORT`      | `onPostReport`     | Post reported by a user              |
-| `COMMENT_REPORT`   | `onCommentReport`  | Comment reported by a user           |
-| `MOD_ACTIONS`      | `onModActions`     | A moderator took an action           |
+The `admin.ts` settings form is a two-route pair: `POST /internal/menu/bot-settings` returns `showForm`, and `POST /internal/forms/bot-settings` saves submitted values. This pattern is reused by all action modules.
 
 ---
 
-## Dispatch Flow
+## Command System
+
+`helpers/command-helper.ts` exports `runOnPost` and `runOnComment` (registered in `POST_SUBMIT` and `COMMENT_CREATE` respectively). Both check for a `u/LLMPhysics-bot` mention (case-insensitive), then parse `!commandName` and `!commandName [argument]` with:
 
 ```
-Reddit event
-    │
-    ▼
-devvit.json  →  /internal/triggers/<event>
-    │
-    ▼
-src/server/index.ts  (Hono route)
-    │
-    ▼  dispatch(registry.POST_SUBMIT, event)
-    │
-    ├──▶ module A run(event)   ← try/catch, errors logged, continues
-    ├──▶ module B run(event)
-    └──▶ module C run(event)
+/!(\w+)(?:\s+\[([^\]]+)\])?/g
 ```
 
-Errors in one module never stop the others from running.
+Command lookup is **case-sensitive**. Unknown commands, wrong content-type, and missing required arguments are all silently skipped (logged at info/warn).
 
 ---
 
 ## Logger
 
-`logger(moduleName)` returns a structured logger scoped to a module:
-
 ```typescript
-const log = logger('spam-filter');
-log.info('removed post', { postId, reason: 'spam' });
-log.warn('rate limit approaching');
-log.error('reddit API call failed', err, { postId });
+const log = logger('my-module');   // call once at module scope
+log.info('msg', { data });
+log.warn('msg');
+log.error('msg', err, { data });   // err is serialized to { message, stack }
 ```
 
-Format: `[ISO timestamp][LEVEL][module-name] message {data}`
-
-All levels write to console (visible in Devvit logs). `info`/`warn`/`error` are also
-persisted to Redis under `bot:log:<level>` (capped at 500 entries) for future mod dashboard use.
+All levels write to console (visible via `devvit logs`). Each level is also persisted to a Redis sorted set (`bot:log:info`, `bot:log:warn`, `bot:log:error`), capped at 500 entries (oldest evicted).
 
 ---
 
-## Current Modules
+## Devvit Platform: Hard-Won Knowledge
 
-| File | Type | Trigger | Purpose |
-|------|------|---------|---------|
-| `admin.ts` | utility | menu click | Bot settings UI (subreddit-level, not a feature module) |
-| `command.ts` | utility | `onCommentCreate`, `onPostSubmit` | `!command` dispatcher (infrastructure, not a feature) |
-| `trigger-modules/depth-cap-moderator.ts` | trigger | `onCommentCreate` | Auto depth-cap enforcement |
-| `trigger-modules/self-response-moderator.ts` | trigger | `onCommentCreate` | Remove/lock OP top-level replies |
-| `trigger-modules/report-filter.ts` | trigger | `onCommentReport`, `onPostReport` | Auto-ignore reports on bot content |
-| `trigger-modules/flood-assistant.ts` | trigger | `onPostSubmit` | Remove posts exceeding per-user daily limit |
-| `command-modules/define.ts` | command | `!define [term]` | Wikipedia/Gemini definition lookup |
-| `action-modules/chain-moderator.ts` | action | menu click | Lock / remove comment chain |
-| `action-modules/saved-responses.ts` | action | menu click | Post/manage pre-written mod responses |
-
----
-
-## Bot Signature Formatting
-
-The `botSignature` setting is automatically formatted when appended to bot replies across all modules that use it (depth-cap moderator, flood assistant, define command). Moderators enter plain text in Bot Settings, and the system:
-
-1. **Auto-superscripts each word**: `"I am a bot"` → `"^I ^am ^a ^bot"`
-2. **Prepends a horizontal rule**: adds `\n\n---\n\n` above the formatted signature for visual separation
-
-This is handled by the `formatSignature(raw: string)` export in `app-settings.ts`. The function:
-- Returns empty string on empty input (preserves "no signature" path)
-- Splits on any whitespace to handle textarea input gracefully
-- Returns the full formatted string ready to append to comments
-
-Any module that appends bot comments should use this pattern:
-```typescript
-const rawSignature = await readSetting('botSignature', '');
-const notice = noticeBody + formatSignature(rawSignature);
+**esbuild — no `--external` flags.** The platform does not expose packages at runtime. Bundle everything:
+```
+esbuild src/server/index.ts --bundle --platform=node --format=cjs --outfile=dist/server/index.js
 ```
 
-**Current consumers:** `depth-cap-moderator.ts`, `flood-assistant.ts`, `define.ts` (command module)
+**`createServer` from `@devvit/server`, not `serve` from `@hono/node-server`.** The Devvit version no-ops `listen()` during bundle evaluation to prevent port-binding failures. `serve()` will crash.
 
----
+**The HTTP server runs in the cloud**, not locally. `devvit playtest` uploads the compiled bundle; the platform executes it. Port 5678 / the VS Code devtunnel is only the live-reload WebSocket (started with `--connect`).
 
-## Canned Response Pattern for Moderation Actions
+**Form submissions** for action modules arrive as a JSON body at `POST /internal/forms/<name>`. Boolean fields come back as `true`/`false` booleans (not strings). Select fields come back as `string[]`.
 
-**Mandatory for all new trigger modules that take moderation actions (remove, lock, etc.).**
+**`devvit.json` `scripts.build` is never called by the CLI.** Always run `npm run build` manually before `devvit playtest`.
 
-When a trigger module takes an automated action, always expose an optional **canned response** setting with the naming convention `<featureName>Response`. This gives moderators a way to customize the response per-subreddit.
-
-**Implementation:**
-1. Add a setting to `devvit.json` under `settings.subreddit` with name `<featureName>Response`
-2. Add the key to `DEFAULTS` in `app-settings.ts` with an empty string default
-3. Add a form field in `admin.ts` to expose it in the bot-settings UI
-4. In the trigger module, read the setting and append it with the bot signature using `formatSignature()`:
-   ```typescript
-   const customResponse = await readSetting('<featureName>Response', '');
-   if (customResponse) {
-     const rawSignature = await readSetting('botSignature', '');
-     const notice = customResponse + formatSignature(rawSignature);
-     // Post via comment.reply(), postObj.addComment(), etc.
-   }
-   ```
-5. If the feature already had a default message, use the custom response as an override (check custom response first, fall back to default)
-
-**Examples:** `depthCapResponse`, `floodAssistantResponse`, `selfResponseResponse`
-
----
-
-## Key Devvit APIs Used
-
-- `reddit` from `@devvit/web/server` — post/comment/user/subreddit actions
-- `redis` from `@devvit/web/server` — persistent key-value storage
-- `scheduler` from `@devvit/web/server` — one-off and recurring jobs
-- `@devvit/web/shared` — TypeScript types for all trigger event payloads
-
----
-
-# Devvit Documentation Reference
-
-See `.documentation/` for additional developer documentation including the test pipeline runbook.
-
----
-
-# @devvit/web Architecture (v0.12.0) — Hard-Won Knowledge
-
-## How the server actually runs
-
-The Hono server does **not** run locally. The flow is:
-
-1. `npm run build` compiles `src/server/index.ts` → `dist/server/index.js` (esbuild CJS bundle)
-2. `devvit playtest` reads `dist/server/index.js` and embeds it inside the Devvit actor bundle
-3. The actor bundle is uploaded to Devvit's platform
-4. The platform runs the server in the cloud at `http://webbit.local:${WEBBIT_PORT}/`
-5. Menu item presses and trigger events are routed to the server by the platform
-
-Port 5678 / the VS Code devtunnel is the **PlaytestServer WebSocket** (live-reload only),
-not the HTTP server. It is only started with `devvit playtest --connect`. Without `--connect`
-it is never opened, which is normal and expected.
-
-## esbuild command — no `--external` flags
-
-The user's `package.json` build command must bundle **everything** with no `--external` flags:
-
-```json
-"build": "esbuild src/server/index.ts --bundle --platform=node --format=cjs --outfile=dist/server/index.js"
-```
-
-Why: The CLI's own esbuild only externalizes `@devvit/protos` root (exact match). If you mark
-packages like `@devvit/server`, `@devvit/reddit`, `@devvit/protos/json/...` as external, the
-sandbox eval fails at runtime with "Cannot find module" because the platform doesn't expose them.
-
-## Must use `createServer` from `@devvit/server`
-
-`src/server/index.ts` must use:
-```typescript
-import { createServer, getServerPort } from '@devvit/server';
-createServer(getRequestListener(app.fetch.bind(app))).listen(getServerPort());
-```
-
-NOT `serve()` from `@hono/node-server`. The `@devvit/server` version wraps `listen()` to be a
-no-op when `globalThis.enableWebbitBundlingHack` is true (set during bundle eval), preventing
-port binding during the CLI's bundling step.
-
-## How menu items work
-
-Menu items are declared in `devvit.json` under `menu.items`. The CLI's bundler injects these into
-`globalThis.__devvit__.config` (as a compile-time `define`). The template code (`blocks.template.js`)
-reads this and calls `Devvit.addMenuItem()` for each item.
-
-`forUserType` values:
-- `"moderator"` — only visible to subreddit moderators
-- `"user"` — visible to all logged-in users (maps to blank/unset in classic Devvit)
-
-`location` values: `"comment"`, `"post"`, `"subreddit"`
-
-Menu items appear in the comment/post overflow (three-dot) menu.
-
-## Playtest URL
-
-To use a playtest version, navigate to the subreddit with `?playtest=<app-slug>` in the URL:
-```
-https://www.reddit.com/r/llmphysics_dev/?playtest=llmphysics-bot
-```
-When clicking posts that open in a new tab, the parameter is lost — re-add it manually.
-Using `devvit playtest --connect` starts the WebSocket server and auto-adds `?playtest=` to
-the URL shown in the terminal.
-
-## `devvit.json` scripts
-
-The CLI only runs `scripts.dev` from `devvit.json` (not `scripts.build`). `scripts.dev` would be
-for starting auxiliary local processes (not needed for pure server apps — the server runs in cloud).
-`scripts.build` is never called by the CLI; you must run `npm run build` yourself before playtesting.
-
+**`forUserType` in menu items:** `"moderator"` (mod-only) or `"user"` (all logged-in users). `"user"` does not bypass permission checks — `reddit.remove()` etc. still require moderator privileges.

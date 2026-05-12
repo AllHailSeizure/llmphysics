@@ -2,13 +2,16 @@ import { reddit, redis } from '@devvit/web/server';
 import type { OnCommentCreateRequest } from '@devvit/web/shared';
 import { logger, logZSet } from '../helpers/log-helper';
 import { readSetting, formatSignature } from '../helpers/settings-helper';
-import type { CommentId } from '../types';
+import type { CommentId, SettingDef } from '../types';
 
 const log = logger('self-response-moderator');
 const SRM_LOG_KEY = 'bot:srmod:log';
 const SRM_LOG_MAX = 200;
 
 export async function run(event: OnCommentCreateRequest): Promise<void> {
+  const enabled = await readSetting('selfResponseModEnabled', true);
+  if (!enabled) return;
+
   const cv2 = event.comment;
   const post = event.post;
   if (!cv2 || !post) return;
@@ -88,3 +91,55 @@ export async function run(event: OnCommentCreateRequest): Promise<void> {
 
   await logZSet(SRM_LOG_KEY, { postId: post.id, commentId: cv2.id }, SRM_LOG_MAX);
 }
+
+export const SELF_RESPONSE_SETTINGS = {
+  enabled: [
+    {
+      key: 'selfResponseModEnabled',
+      defaultValue: true,
+      field: {
+        type: 'boolean',
+        name: 'selfResponseModEnabled',
+        label: 'Self-Response Moderator',
+        helpText: 'Enable or disable the self-response moderator module.',
+      },
+    } as SettingDef,
+  ],
+  ignoreFlags: [
+    {
+      key: 'selfResponseIgnoreModerators',
+      defaultValue: true,
+      field: {
+        type: 'boolean',
+        name: 'selfResponseIgnoreModerators',
+        label: 'Ignore moderators (self-reply)',
+        helpText: 'Do not enforce the self-response rule for moderators.',
+        required: false,
+      },
+    } as SettingDef,
+    {
+      key: 'selfResponseIgnoreContributors',
+      defaultValue: true,
+      field: {
+        type: 'boolean',
+        name: 'selfResponseIgnoreContributors',
+        label: 'Ignore approved submitters (self-reply)',
+        helpText: 'Do not enforce the self-response rule for approved submitters.',
+        required: false,
+      },
+    } as SettingDef,
+  ],
+  response: [
+    {
+      key: 'selfResponseResponse',
+      defaultValue: '',
+      field: {
+        type: 'paragraph',
+        name: 'selfResponseResponse',
+        label: 'Self-response removal message',
+        helpText: 'Posted when a user responds to their own post.',
+        required: false,
+      },
+    } as SettingDef,
+  ],
+};

@@ -2,7 +2,7 @@ import { reddit, settings } from '@devvit/web/server';
 import { logger } from '../helpers/log-helper';
 import { registerCommand } from '../helpers/command-helper';
 import { readSetting, formatSignature } from '../helpers/settings-helper';
-import type { CommandEvent } from '../types';
+import type { CommandEvent, SettingDef } from '../types';
 
 const log = logger('define');
 
@@ -124,6 +124,9 @@ function truncate(text: string): string {
 registerCommand(
   { commandName: 'define', contentType: 'comment', requiresArgument: true },
   async (event: CommandEvent, argument: string | null) => {
+    const enabled = await readSetting('defineCommandEnabled', true);
+    if (!enabled) return;
+
     if (!('comment' in event) || !event.comment) return;
     const term = argument!;
     const commentId = event.comment.id as `t1_${string}`;
@@ -162,3 +165,18 @@ registerCommand(
     log.info('Definition reply posted', { term, commentId });
   },
 );
+
+export const DEFINE_COMMAND_SETTINGS = {
+  enabled: [
+    {
+      key: 'defineCommandEnabled',
+      defaultValue: true,
+      field: {
+        type: 'boolean',
+        name: 'defineCommandEnabled',
+        label: 'Define Command',
+        helpText: 'Enable or disable the !define command.',
+      },
+    } as SettingDef,
+  ],
+};

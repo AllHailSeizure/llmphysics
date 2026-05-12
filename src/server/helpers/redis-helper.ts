@@ -6,12 +6,15 @@ export interface FloodIgnoreSettings {
   ignoreDeleted: boolean;
   ignoreRemoved: boolean;
   ignoreAutoRemoved: boolean;
+  ignoreModerators: boolean;
+  ignoreContributors: boolean;
 }
 
 export interface FloodStatusPost {
   id: string;
   createdAt: Date;
   url: string;
+  includedInQuota: boolean;
 }
 
 export interface FloodStatus {
@@ -32,11 +35,19 @@ const FLOOD_POSTS_KEY = 'flood:posts';
 // Fixed buffer — longer than any reasonable quota window so changing windowHours never loses history
 const FLOOD_POST_TTL_SECONDS = 48 * 60 * 60;
 
-export async function trackFloodPost(userId: string, postId: string, createdAt: Date): Promise<void> {
+export async function trackFloodPost(
+  userId: string,
+  postId: string,
+  createdAt: Date,
+  isModerator: boolean,
+  isApprovedUser: boolean,
+): Promise<void> {
   await Promise.all([
     redis.hSet(floodPostKey(postId), {
       userId,
       createdAt: String(createdAt.getTime()),
+      isModerator: isModerator ? '1' : '0',
+      isApprovedUser: isApprovedUser ? '1' : '0',
       isUserDeleted: '0',
       isModRemoved: '0',
       isAutoRemoved: '0',
@@ -87,37 +98,41 @@ export async function evaluateFloodStatus(
       h !== null && h.hash.userId === userId,
   );
 
-  // Apply flag filters and exclude the current post being evaluated
-  const validEntries = userHashes
-    .filter(({ postId, hash }) => {
-      if (postId === currentPostId) return false;
-      if (hash.isUserDeleted === '1' && ignoreSettings.ignoreDeleted) return false;
-      if (hash.isModRemoved === '1' && ignoreSettings.ignoreRemoved) return false;
-      if (hash.isAutoRemoved === '1' && ignoreSettings.ignoreAutoRemoved) return false;
-      return true;
-    })
-    .sort((a, b) => Number(b.hash.createdAt) - Number(a.hash.createdAt)); // Newest first
+  // Build all tracked posts with their inclusion status (excluding currentPostId — that's the post being evaluated right now)
+  const allPosts: FloodStatusPost[] = userHashes
+    .filter(({ postId }) => postId !== currentPostId)
+    .sort((a, b) => Number(b.hash.createdAt) - Number(a.hash.createdAt)) // Newest first
+    .map(({ postId, hash }) => {
+      const includedInQuota =
+        !(hash.isModerator === '1' && ignoreSettings.ignoreModerators) &&
+        !(hash.isApprovedUser === '1' && ignoreSettings.ignoreContributors) &&
+        !(hash.isUserDeleted === '1' && ignoreSettings.ignoreDeleted) &&
+        !(hash.isModRemoved === '1' && ignoreSettings.ignoreRemoved) &&
+        !(hash.isAutoRemoved === '1' && ignoreSettings.ignoreAutoRemoved);
+      return {
+        id: postId,
+        createdAt: new Date(Number(hash.createdAt)),
+        url: `https://reddit.com/r/${username}/comments/${postId}`,
+        includedInQuota,
+      };
+    });
 
-  const validPosts: FloodStatusPost[] = validEntries.map(({ postId, hash }) => ({
-    id: postId,
-    createdAt: new Date(Number(hash.createdAt)),
-    url: `https://reddit.com/r/${username}/comments/${postId}`,
-  }));
+  const includedPosts = allPosts.filter((p) => p.includedInQuota);
 
   let nextPostTime: Date | null = null;
-  if (validPosts.length >= maxPosts) {
-    // Oldest post (last in newest-first array) determines when quota clears
-    nextPostTime = new Date(validPosts[validPosts.length - 1].createdAt.getTime() + windowMs);
+  if (includedPosts.length >= maxPosts) {
+    // Oldest included post (last in newest-first array) determines when quota clears
+    nextPostTime = new Date(includedPosts[includedPosts.length - 1].createdAt.getTime() + windowMs);
   } else {
     nextPostTime = now;
   }
 
   return {
-    validPostCount: validPosts.length,
+    validPostCount: includedPosts.length,
     maxPosts,
     windowHours,
-    exceedsQuota: validPosts.length >= maxPosts,
+    exceedsQuota: includedPosts.length >= maxPosts,
     nextPostTime,
-    validPosts,
+    validPosts: allPosts,
   };
 }

@@ -2,7 +2,8 @@ import type { Hono } from 'hono';
 import { redis, reddit } from '@devvit/web/server';
 import type { MenuItemRequest, UiResponse } from '@devvit/web/shared';
 import { logger, logZSet } from '../helpers/log-helper';
-import type { CommentId } from '../types';
+import { readSetting } from '../helpers/settings-helper';
+import type { CommentId, SettingDef } from '../types';
 
 const log = logger('mop-tool');
 const CHAIN_LOG_KEY = 'bot:chainmod:log';
@@ -118,6 +119,9 @@ export async function runChainMop(
 
 export function register(app: Hono): void {
   app.post('/internal/menu/chain-mop', async (c) => {
+    const enabled = await readSetting('mopToolEnabled', true);
+    if (!enabled) return c.json<UiResponse>({ showToast: 'Chain Mop is disabled.' });
+
     const { targetId } = await c.req.json<MenuItemRequest>();
     const mod = (await reddit.getCurrentUsername()) ?? 'unknown';
     await setSession(mod, { targetId });
@@ -167,3 +171,18 @@ export function register(app: Hono): void {
     });
   });
 }
+
+export const MOP_TOOL_SETTINGS = {
+  enabled: [
+    {
+      key: 'mopToolEnabled',
+      defaultValue: true,
+      field: {
+        type: 'boolean',
+        name: 'mopToolEnabled',
+        label: 'Chain Mop',
+        helpText: 'Enable or disable the chain mop action.',
+      },
+    } as SettingDef,
+  ],
+};
