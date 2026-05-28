@@ -23,8 +23,7 @@
   },
   "permissions": {
     "http": {
-      "domains": ["en.wikipedia.org", "generativelanguage.googleapis.com"]
-    
+      "domains": ["en.wikipedia.org", "generativelanguage.googleapis.com", "zenodo.org", "eimdgqymjwfljtapnuyl.supabase.co"]
     },
     "redis": true,
     "reddit": {
@@ -51,11 +50,22 @@
       "bingo-batch-check": {
         "endpoint": "/internal/scheduler/bingo-batch-check",
         "cron": "0 * * * *"
+      },
+      "pdf-review-poll": {
+        "endpoint": "/internal/scheduler/pdf-review-poll",
+        "cron": "*/5 * * * *"
       }
     }
   },
   "menu": {
     "items": [
+      {
+        "label": "Request Adversarial LLM Review",
+        "description": "Request LLM review of your post. Includes linked content.",
+        "forUserType": "user",
+        "location": "post",
+        "endpoint": "/internal/menu/adversarial-review"
+      },
       {
         "label": "Chain Mop",
         "description": "Remove and/or lock this comment chain",
@@ -122,6 +132,13 @@
         "endpoint": "/internal/menu/bot-settings-removal-messages"
       },
       {
+        "label": "LLM Reviewer Settings",
+        "description": "Manage LLM reviewer settings and clear review locks.",
+        "forUserType": "moderator",
+        "location": "subreddit",
+        "endpoint": "/internal/menu/bot-settings-adversarial"
+      },
+      {
         "label": "Create Bingo Post",
         "description": "Manually create this week's bingo post.",
         "forUserType": "moderator",
@@ -153,7 +170,8 @@
     "bot-settings-removal-messages": "/internal/forms/bot-settings-removal-messages",
     "quota-viewer-search":        "/internal/forms/quota-viewer-search",
     "quota-viewer-result":        "/internal/forms/quota-viewer-result",
-    "bingo-settings":             "/internal/forms/bingo-settings"
+    "bingo-settings":             "/internal/forms/bingo-settings",
+    "bot-settings-adversarial":   "/internal/forms/bot-settings-adversarial"
   },
   "settings": {
     "global": {
@@ -161,6 +179,18 @@
         "type": "string",
         "label": "Gemini API key",
         "helpText": "Google Gemini API key used by the !define command for term resolution.",
+        "isSecret": true
+      },
+      "supabaseUrl": {
+        "type": "string",
+        "label": "Supabase project URL",
+        "helpText": "https://YOUR_PROJECT.supabase.co — used for the async PDF review queue.",
+        "isSecret": false
+      },
+      "supabaseServiceRoleKey": {
+        "type": "string",
+        "label": "Supabase service role key",
+        "helpText": "Service role key for the review_jobs table. Keep secret.",
         "isSecret": true
       }
     },

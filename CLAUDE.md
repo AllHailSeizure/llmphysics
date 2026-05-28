@@ -20,6 +20,49 @@ There is no test runner. Validation is done manually via `devvit logs` during pl
 
 ---
 
+## Live Observability
+
+Two MCP tools are available for live observation during development and testing. Use them instead of reading log files or guessing state.
+
+### Bot logs — Devvit MCP / CLI
+
+**Via Bash (reliable):**
+```bash
+devvit logs r/llmphysics_dev llmphysics-bot --since 30m --show-timestamps
+```
+Key flags: `--since` (e.g. `5m`, `1h`), `-j` (JSON output), `--show-timestamps`.
+
+**Via MCP tool** (`mcp__devvit-mcp__devvit_logs`):
+```
+{ subreddit: "llmphysics_dev", app: "llmphysics-bot", since: "30m" }
+```
+Note: this tool requires `npx` in the MCP server's PATH. If it fails with `spawn npx ENOENT`, fall back to the Bash form above.
+
+### Supabase — PDF review job state
+
+**MCP tool:** `mcp__plugin_supabase_supabase__execute_sql`  
+**Project ID:** `eimdgqymjwfljtapnuyl`
+
+Useful queries:
+```sql
+-- Current review queue state
+SELECT post_id, pdf_url, status, error, created_at, updated_at
+FROM review_jobs ORDER BY created_at DESC LIMIT 20;
+
+-- Jobs stuck in 'processing' or 'queued'
+SELECT post_id, status, created_at FROM review_jobs
+WHERE status IN ('queued', 'processing')
+ORDER BY created_at;
+
+-- Recent failures
+SELECT post_id, error, updated_at FROM review_jobs
+WHERE status = 'failed' ORDER BY updated_at DESC LIMIT 10;
+```
+
+Use this any time a PDF review doesn't appear — check the job status before assuming a bot bug.
+
+---
+
 ## Build System: Vite + React
 
 The project uses **Vite** (via `@devvit/start/vite`) to build both the Node.js server and the React webview client in one pass. The `@vitejs/plugin-react` plugin handles JSX transpilation.

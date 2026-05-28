@@ -21,7 +21,6 @@ import type {
 import { runOnComment, runOnPost } from './helpers/command-helper';
 import { runOnCommentReport, runOnPostReport } from './trigger-modules/report-moderator';
 import { run as runLengthModerator, runOnFlairUpdate as runLengthFlairUpdate } from './trigger-modules/length-moderator';
-import { run as runAdversarialReviewer } from './trigger-modules/adversarial-reviewer';
 
 // ─── Command module imports ────────────────────────────────────────────────────
 // Add one import line per new command module (side-effect: registers the command), e.g.:
@@ -31,6 +30,7 @@ import './command-modules/define-command';
 // ─── Menu module imports ───────────────────────────────────────────────────────
 // Add one import line per new menu module, e.g.:
 // import { register as registerMyModule } from './action-modules/my-module';
+import { register as registerAdversarialReviewer } from './action-modules/adversarial-reviewer';
 import { register as registerMopTool } from './action-modules/mop-tool';
 import { register as registerResponseTool } from './action-modules/response-tool';
 import { register as registerQuotaViewer } from './action-modules/quota-viewer';
@@ -45,7 +45,7 @@ import { runQuotaCheck, runOnModAction as runFloodOnModAction, runOnPostDelete a
 
 const APP_INSTALL:       AppInstallHandler[]    = [];
 const APP_UPGRADE:       AppUpgradeHandler[]    = [];
-const POST_SUBMIT:       PostSubmitHandler[]    = [runOnPost, runQuotaCheck, runLengthModerator, runAdversarialReviewer, capturePostEvent];
+const POST_SUBMIT:       PostSubmitHandler[]    = [runOnPost, runQuotaCheck, runLengthModerator, capturePostEvent];
 const POST_FLAIR_UPDATE: PostFlairUpdateHandler[] = [runLengthFlairUpdate];
 const COMMENT_CREATE:    CommentCreateHandler[] = [runOnComment, runDepthCapModerator, runSelfResponseModerator, captureCommentEvent];
 const POST_REPORT:    PostReportHandler[]    = [runOnPostReport, capturePostReportEvent];
@@ -95,6 +95,7 @@ export function registerAll(app: Hono): void {
   }
 
   // Menu modules — add one line per new menu module
+  registerAdversarialReviewer(app);
   registerMopTool(app);
   registerResponseTool(app);
   registerQuotaViewer(app);

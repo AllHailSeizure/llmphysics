@@ -316,6 +316,21 @@ const LENGTH_MOD_SETTINGS = {
   ],
 };
 
+const ADVERSARIAL_REVIEWER_SETTINGS = {
+  enabled: [
+    {
+      key: 'adversarialReviewerEnabled',
+      defaultValue: false,
+      field: {
+        type: 'boolean',
+        name: 'adversarialReviewerEnabled',
+        label: 'Adversarial Reviewer',
+        helpText: 'Enable the Gemini-powered adversarial physics reviewer.',
+      },
+    },
+  ],
+};
+
 const MOP_TOOL_SETTINGS = {
   enabled: [
     {
@@ -373,6 +388,7 @@ export const SETTINGS_MENUS: SettingsMenu[] = [
       ...MOP_TOOL_SETTINGS.enabled,
       ...RESPONSE_TOOL_SETTINGS.enabled,
       ...DEFINE_COMMAND_SETTINGS.enabled,
+      ...ADVERSARIAL_REVIEWER_SETTINGS.enabled,
     ],
   },
   {
