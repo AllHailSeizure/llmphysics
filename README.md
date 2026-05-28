@@ -1,4 +1,4 @@
-# llmphysics-bot  2.8.1 — Moderator Guide
+# llmphysics-bot  2.8.2 — Moderator Guide
 
 A modular moderation-assistance bot for [r/LLMPhysics](https://reddit.com/r/LLMPhysics), built on the [Devvit](https://developers.reddit.com/docs) platform.
 
@@ -70,5 +70,8 @@ Customize the text users receive when content is removed or restricted:
 ## 3. Interaction Commands
 
 Any user can trigger a definition by mentioning the bot in a comment:
+
+
+
 
 

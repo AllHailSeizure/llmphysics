@@ -2,15 +2,12 @@ import { reddit, redis } from '@devvit/web/server';
 import type { OnPostSubmitRequest, OnModActionRequest, OnPostDeleteRequest } from '@devvit/web/shared';
 import { logger } from '../helpers/log-helper';
 import { readSetting, formatSignature } from '../helpers/settings-helper';
-import { evaluateFloodStatus, trackFloodPost, markPostModRemoved, markPostAutoRemoved, markPostDeleted } from '../helpers/redis-helper';
+import { evaluateFloodStatus, trackPost, markPostModRemoved, markPostAutoRemoved, markPostDeleted } from '../helpers/redis-helper';
 import type { PostId, SettingDef } from '../types';
 
 const log = logger('flood-moderator');
 
 export async function runQuotaCheck(event: OnPostSubmitRequest): Promise<void> {
-  const enabled = await readSetting('floodModEnabled', true);
-  if (!enabled) return;
-
   const post = event.post;
   const author = event.author;
   const subreddit = event.subreddit;
@@ -89,9 +86,18 @@ export async function runQuotaCheck(event: OnPostSubmitRequest): Promise<void> {
   // Track the post before evaluation so the hash exists — currentPostId excludes it from the count
   try {
     const createdAt = post.createdAt ? new Date(post.createdAt) : new Date();
-    await trackFloodPost(user.id, postId, createdAt, isModerator, isApprovedUser);
+    await trackPost(user.id, postId, createdAt, isModerator, isApprovedUser);
   } catch (err) {
     log.error('Failed to track post in Redis', err, { postId, userId: user.id });
+  }
+
+  // Enforcement gate. The enable switch lives HERE, not at the top, so disabling
+  // the flood moderator still tracks posts — the post hash is shared infrastructure
+  // that other modules (e.g. bingo) depend on. Only quota enforcement is toggled off.
+  const enabled = await readSetting('floodModEnabled', true);
+  if (!enabled) {
+    log.info('Flood moderator disabled — post tracked, enforcement skipped', { postId });
+    return;
   }
 
   // Evaluate quota — all exemption logic comes from hash flags, no Reddit API needed

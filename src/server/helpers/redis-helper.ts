@@ -1,6 +1,9 @@
 import { redis } from '@devvit/web/server';
 
-// ─── Flood Infrastructure (Hash-based post tracking) ──────────────────────────────
+// ─── Post tracking (hash-based) ───────────────────────────────────────────────
+// One hash per Reddit post. The flood moderator owns the quota fields and the
+// quota evaluation; the bingo game tags posts with their game. The hash itself
+// is a record of a post, not a flood-moderator artifact.
 
 export interface FloodIgnoreSettings {
   ignoreDeleted: boolean;
@@ -26,16 +29,19 @@ export interface FloodStatus {
   validPosts: FloodStatusPost[];
 }
 
-// Key schema:
-//   flood:post:{postId}  — Hash: userId, createdAt, isUserDeleted, isModRemoved, isAutoRemoved
+// Key schema (string literals kept as-is so existing Redis data is not orphaned):
+//   flood:post:{postId}  — Hash: userId, createdAt, isModerator, isApprovedUser,
+//                          isUserDeleted, isModRemoved, isAutoRemoved, gameId
 //   flood:posts          — Global sorted set, score = createdAt ms, member = postId
-const floodPostKey = (postId: string) => `flood:post:${postId}`;
-const FLOOD_POSTS_KEY = 'flood:posts';
+const postKey = (postId: string) => `flood:post:${postId}`;
+const POSTS_KEY = 'flood:posts';
 
-// Fixed buffer — longer than any reasonable quota window so changing windowHours never loses history
-const FLOOD_POST_TTL_SECONDS = 48 * 60 * 60;
+// Fixed buffer — longer than any reasonable quota window or game length so neither
+// the flood quota nor the bingo game loses history. Quota math is window-based
+// (zRemRangeByScore + zRange), so a longer TTL never affects it.
+const POST_TTL_SECONDS = 8 * 24 * 60 * 60;
 
-export async function trackFloodPost(
+export async function trackPost(
   userId: string,
   postId: string,
   createdAt: Date,
@@ -43,7 +49,7 @@ export async function trackFloodPost(
   isApprovedUser: boolean,
 ): Promise<void> {
   await Promise.all([
-    redis.hSet(floodPostKey(postId), {
+    redis.hSet(postKey(postId), {
       userId,
       createdAt: String(createdAt.getTime()),
       isModerator: isModerator ? '1' : '0',
@@ -51,21 +57,36 @@ export async function trackFloodPost(
       isUserDeleted: '0',
       isModRemoved: '0',
       isAutoRemoved: '0',
-    }).then(() => redis.expire(floodPostKey(postId), FLOOD_POST_TTL_SECONDS)),
-    redis.zAdd(FLOOD_POSTS_KEY, { member: postId, score: createdAt.getTime() }),
+    }).then(() => redis.expire(postKey(postId), POST_TTL_SECONDS)),
+    redis.zAdd(POSTS_KEY, { member: postId, score: createdAt.getTime() }),
   ]);
 }
 
 export async function markPostDeleted(postId: string): Promise<void> {
-  await redis.hSet(floodPostKey(postId), { isUserDeleted: '1' });
+  await redis.hSet(postKey(postId), { isUserDeleted: '1' });
 }
 
 export async function markPostModRemoved(postId: string): Promise<void> {
-  await redis.hSet(floodPostKey(postId), { isModRemoved: '1' });
+  await redis.hSet(postKey(postId), { isModRemoved: '1' });
 }
 
 export async function markPostAutoRemoved(postId: string): Promise<void> {
-  await redis.hSet(floodPostKey(postId), { isAutoRemoved: '1' });
+  await redis.hSet(postKey(postId), { isAutoRemoved: '1' });
+}
+
+// ─── Bingo game association ───────────────────────────────────────────────────
+
+export async function tagPostWithGame(postId: string, gameId: string): Promise<void> {
+  await redis.hSet(postKey(postId), { gameId });
+  // A function that can create a key owns that key's TTL. trackPost normally
+  // creates the hash first, but if it never ran (e.g. the poster could not be
+  // resolved) this hSet is the first writer — so set the TTL unconditionally.
+  await redis.expire(postKey(postId), POST_TTL_SECONDS);
+}
+
+export async function getPostGameId(postId: string): Promise<string | null> {
+  const val = await redis.hGet(postKey(postId), 'gameId');
+  return val ?? null;
 }
 
 export async function evaluateFloodStatus(
@@ -81,14 +102,14 @@ export async function evaluateFloodStatus(
   const cutoff = now.getTime() - windowMs;
 
   // Prune entries outside the window, then fetch everything inside it
-  await redis.zRemRangeByScore(FLOOD_POSTS_KEY, 0, cutoff - 1);
-  const entries = await redis.zRange(FLOOD_POSTS_KEY, cutoff, now.getTime(), { by: 'score' });
+  await redis.zRemRangeByScore(POSTS_KEY, 0, cutoff - 1);
+  const entries = await redis.zRange(POSTS_KEY, cutoff, now.getTime(), { by: 'score' });
   const postIds = entries.map((e: any) => (typeof e === 'string' ? e : e.member));
 
   // Fetch all hashes in parallel, filter for this user's posts
   const hashes = await Promise.all(
     postIds.map(async (postId: string) => {
-      const hash = await redis.hGetAll(floodPostKey(postId));
+      const hash = await redis.hGetAll(postKey(postId));
       return hash && Object.keys(hash).length > 0 ? { postId, hash } : null;
     }),
   );

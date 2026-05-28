@@ -5,6 +5,7 @@ import type {
   AppInstallHandler,
   AppUpgradeHandler,
   PostSubmitHandler,
+  PostFlairUpdateHandler,
   CommentCreateHandler,
   PostReportHandler,
   CommentReportHandler,
@@ -19,7 +20,7 @@ import type {
 // import { run as spamFilter } from './action-modules/spam-filter';
 import { runOnComment, runOnPost } from './helpers/command-helper';
 import { runOnCommentReport, runOnPostReport } from './trigger-modules/report-moderator';
-import { run as runLengthModerator } from './trigger-modules/length-moderator';
+import { run as runLengthModerator, runOnFlairUpdate as runLengthFlairUpdate } from './trigger-modules/length-moderator';
 
 // ─── Command module imports ────────────────────────────────────────────────────
 // Add one import line per new command module (side-effect: registers the command), e.g.:
@@ -29,9 +30,11 @@ import './command-modules/define-command';
 // ─── Menu module imports ───────────────────────────────────────────────────────
 // Add one import line per new menu module, e.g.:
 // import { register as registerMyModule } from './action-modules/my-module';
+import { register as registerAdversarialReviewer } from './action-modules/adversarial-reviewer';
 import { register as registerMopTool } from './action-modules/mop-tool';
 import { register as registerResponseTool } from './action-modules/response-tool';
 import { register as registerQuotaViewer } from './action-modules/quota-viewer';
+import { register as registerBingoGame, captureCommentEvent, capturePostEvent, capturePostReportEvent, captureModActionEvent } from './action-modules/bingo-game';
 import { register as registerAdmin } from './admin';
 import { run as runDepthCapModerator } from './trigger-modules/depth-cap-moderator';
 import { run as runSelfResponseModerator } from './trigger-modules/self-response-moderator';
@@ -40,13 +43,14 @@ import { runQuotaCheck, runOnModAction as runFloodOnModAction, runOnPostDelete a
 // ─── Trigger arrays ────────────────────────────────────────────────────────────
 // Add the imported run() to the appropriate array (one line per module).
 
-const APP_INSTALL:    AppInstallHandler[]    = [];
-const APP_UPGRADE:    AppUpgradeHandler[]    = [];
-const POST_SUBMIT:    PostSubmitHandler[]    = [runOnPost, runQuotaCheck, runLengthModerator];
-const COMMENT_CREATE: CommentCreateHandler[] = [runOnComment, runDepthCapModerator, runSelfResponseModerator];
-const POST_REPORT:    PostReportHandler[]    = [runOnPostReport];
+const APP_INSTALL:       AppInstallHandler[]    = [];
+const APP_UPGRADE:       AppUpgradeHandler[]    = [];
+const POST_SUBMIT:       PostSubmitHandler[]    = [runOnPost, runQuotaCheck, runLengthModerator, capturePostEvent];
+const POST_FLAIR_UPDATE: PostFlairUpdateHandler[] = [runLengthFlairUpdate];
+const COMMENT_CREATE:    CommentCreateHandler[] = [runOnComment, runDepthCapModerator, runSelfResponseModerator, captureCommentEvent];
+const POST_REPORT:    PostReportHandler[]    = [runOnPostReport, capturePostReportEvent];
 const COMMENT_REPORT: CommentReportHandler[] = [runOnCommentReport];
-const MOD_ACTIONS:    ModActionsHandler[]    = [runFloodOnModAction];
+const MOD_ACTIONS:    ModActionsHandler[]    = [runFloodOnModAction, captureModActionEvent];
 const POST_DELETE:    PostDeleteHandler[]    = [runFloodOnPostDelete];
 const MOD_MAIL:       ModMailHandler[]       = [];
 
@@ -72,8 +76,9 @@ type AnyHandler = ModuleHandler<any>;
 const TRIGGER_ROUTES: Array<[string, AnyHandler[]]> = [
   ['app-install',    APP_INSTALL],
   ['app-upgrade',    APP_UPGRADE],
-  ['post-submit',    POST_SUBMIT],
-  ['comment-create', COMMENT_CREATE],
+  ['post-submit',       POST_SUBMIT],
+  ['post-flair-update', POST_FLAIR_UPDATE],
+  ['comment-create',    COMMENT_CREATE],
   ['post-report',    POST_REPORT],
   ['comment-report', COMMENT_REPORT],
   ['mod-action',     MOD_ACTIONS],
@@ -90,8 +95,10 @@ export function registerAll(app: Hono): void {
   }
 
   // Menu modules — add one line per new menu module
+  registerAdversarialReviewer(app);
   registerMopTool(app);
   registerResponseTool(app);
   registerQuotaViewer(app);
+  registerBingoGame(app);
   registerAdmin(app);
 }

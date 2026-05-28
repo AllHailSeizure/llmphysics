@@ -2,20 +2,33 @@
   "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
   "name": "llmphysics-bot",
   "server": {
-    "entry": "index.js"
+    "entry": "index.cjs"
+  },
+  "post": {
+    "dir": "dist/client",
+    "entrypoints": {
+      "default": {
+        "entry": "splash.html",
+        "inline": true,
+        "height": "regular"
+      },
+      "game": {
+        "entry": "game.html",
+        "height": "tall"
+      }
+    }
   },
   "dev":{
     "subreddit": "llmphysics_dev"
   },
   "permissions": {
     "http": {
-      "domains": ["en.wikipedia.org", "generativelanguage.googleapis.com"]
-    
+      "domains": ["en.wikipedia.org", "generativelanguage.googleapis.com", "zenodo.org", "eimdgqymjwfljtapnuyl.supabase.co"]
     },
     "redis": true,
     "reddit": {
       "enable": true,
-      "asUser": ["SUBMIT_COMMENT"],
+      "asUser": ["SUBMIT_COMMENT", "SUBMIT_POST"],
       "scope": "moderator"
     }
     
@@ -24,6 +37,7 @@
     "onAppInstall": "/internal/triggers/app-install",
     "onAppUpgrade": "/internal/triggers/app-upgrade",
     "onPostSubmit": "/internal/triggers/post-submit",
+    "onPostFlairUpdate": "/internal/triggers/post-flair-update",
     "onCommentCreate": "/internal/triggers/comment-create",
     "onPostReport": "/internal/triggers/post-report",
     "onCommentReport": "/internal/triggers/comment-report",
@@ -31,8 +45,27 @@
     "onPostDelete": "/internal/triggers/post-delete",
     "onModMail": "/internal/triggers/mod-mail"
   },
+  "scheduler": {
+    "tasks": {
+      "bingo-batch-check": {
+        "endpoint": "/internal/scheduler/bingo-batch-check",
+        "cron": "0 * * * *"
+      },
+      "pdf-review-poll": {
+        "endpoint": "/internal/scheduler/pdf-review-poll",
+        "cron": "*/5 * * * *"
+      }
+    }
+  },
   "menu": {
     "items": [
+      {
+        "label": "Request Adversarial LLM Review",
+        "description": "Request LLM review of your post. Includes linked content.",
+        "forUserType": "user",
+        "location": "post",
+        "endpoint": "/internal/menu/adversarial-review"
+      },
       {
         "label": "Chain Mop",
         "description": "Remove and/or lock this comment chain",
@@ -97,6 +130,27 @@
         "forUserType": "moderator",
         "location": "subreddit",
         "endpoint": "/internal/menu/bot-settings-removal-messages"
+      },
+      {
+        "label": "LLM Reviewer Settings",
+        "description": "Manage LLM reviewer settings and clear review locks.",
+        "forUserType": "moderator",
+        "location": "subreddit",
+        "endpoint": "/internal/menu/bot-settings-adversarial"
+      },
+      {
+        "label": "Create Bingo Post",
+        "description": "Manually create this week's bingo post.",
+        "forUserType": "moderator",
+        "location": "subreddit",
+        "endpoint": "/internal/menu/create-bingo-post"
+      },
+      {
+        "label": "Bingo Settings",
+        "description": "Configure and manage the bingo game.",
+        "forUserType": "moderator",
+        "location": "subreddit",
+        "endpoint": "/internal/menu/bingo-settings"
       }
     ]
   },
@@ -115,7 +169,9 @@
     "bot-settings-posting":       "/internal/forms/bot-settings-posting",
     "bot-settings-removal-messages": "/internal/forms/bot-settings-removal-messages",
     "quota-viewer-search":        "/internal/forms/quota-viewer-search",
-    "quota-viewer-result":        "/internal/forms/quota-viewer-result"
+    "quota-viewer-result":        "/internal/forms/quota-viewer-result",
+    "bingo-settings":             "/internal/forms/bingo-settings",
+    "bot-settings-adversarial":   "/internal/forms/bot-settings-adversarial"
   },
   "settings": {
     "global": {
@@ -123,6 +179,18 @@
         "type": "string",
         "label": "Gemini API key",
         "helpText": "Google Gemini API key used by the !define command for term resolution.",
+        "isSecret": true
+      },
+      "supabaseUrl": {
+        "type": "string",
+        "label": "Supabase project URL",
+        "helpText": "https://YOUR_PROJECT.supabase.co — used for the async PDF review queue.",
+        "isSecret": false
+      },
+      "supabaseServiceRoleKey": {
+        "type": "string",
+        "label": "Supabase service role key",
+        "helpText": "Service role key for the review_jobs table. Keep secret.",
         "isSecret": true
       }
     },

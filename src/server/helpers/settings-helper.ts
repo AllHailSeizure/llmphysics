@@ -27,6 +27,10 @@ const DEFAULTS: Record<string, string | number | boolean> = {
   mopToolEnabled: true,
   responseToolEnabled: true,
   defineCommandEnabled: true,
+  defineCommandCategory: 'physics, mathematics, and AI',
+  defineCommandSearchGrounding: true,
+  adversarialReviewerEnabled: false,
+  adversarialReviewerFlairId: '',
 };
 
 export async function readSetting<T extends string | number | boolean>(

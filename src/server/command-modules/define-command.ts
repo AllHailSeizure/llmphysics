@@ -23,15 +23,15 @@ type WikiPage = {
 
 // ─── Gemini term resolver ─────────────────────────────────────────────────────
 
-async function geminiResolve(term: string, apiKey: string): Promise<string | null> {
+async function geminiResolve(term: string, apiKey: string, category: string, searchGrounding: boolean): Promise<string | null> {
   const prompt =
-    `You are a Wikipedia title resolver for a physics/mathematics/AI subreddit.\n` +
+    `You are a Wikipedia title resolver for a ${category} subreddit.\n` +
     `Given a user's search term, identify the exact Wikipedia article title for that concept.\n` +
     `CRITICAL: If the term is ambiguous, YOU MUST prioritize the article specifically related to ` +
-    `physics, mathematics, or artificial intelligence. Look for titles that include scientific ` +
+    `${category}. Look for titles that include scientific ` +
     `disambiguations (e.g., return "Observer effect (physics)" instead of "Observer effect").\n` +
     `Correct any spelling errors and use proper Wikipedia title formatting (e.g. diacritics, capitalisation).\n` +
-    `If the term is not a physics, mathematics, or AI concept, reply with exactly "none".\n` +
+    `If the term is not a ${category} concept, reply with exactly "none".\n` +
     `Reply with only the Wikipedia article title or "none" — nothing else.\n\n` +
     `Term: ${term}`;
 
@@ -139,13 +139,16 @@ registerCommand(
       return;
     }
 
+    const category = await readSetting('defineCommandCategory', 'physics, mathematics, and AI');
+    const searchGrounding = await readSetting('defineCommandSearchGrounding', true);
+
     let replyText: string;
     try {
-      const canonicalTitle = await geminiResolve(term, apiKey);
+      const canonicalTitle = await geminiResolve(term, apiKey, category, searchGrounding);
       log.info('Gemini resolved term', { term, canonicalTitle });
 
       if (!canonicalTitle) {
-        replyText = `"${term}" doesn't appear to be a physics, mathematics, or AI concept.`;
+        replyText = `"${term}" doesn't appear to be a ${category} concept.`;
       } else {
         const page = await fetchPageByTitle(canonicalTitle);
         if (page) {
