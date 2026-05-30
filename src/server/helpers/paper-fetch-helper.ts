@@ -64,7 +64,7 @@ async function resolveWithUrlContext(url: string, apiKey: string): Promise<strin
       return null;
     }
 
-    const data = await res.json() as any;
+    const data = await res.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
     const rawUrl = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
     if (!rawUrl) return null;
 
@@ -165,7 +165,7 @@ export async function callGeminiWithPdf(
       return null;
     }
 
-    const data = await res.json() as any;
+    const data = await res.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
     return text ? { text, model } : null;
   } catch (err) {

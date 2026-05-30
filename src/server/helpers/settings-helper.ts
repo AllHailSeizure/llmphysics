@@ -38,7 +38,7 @@ export async function readSetting<T extends string | number | boolean>(
   defaultValue: T,
 ): Promise<T> {
   const raw = await redis.get(`settings:${key}`);
-  if (raw == null) return defaultValue;
+  if (raw === null || raw === undefined) return defaultValue;
   if (typeof defaultValue === 'number') return Number(raw) as T;
   if (typeof defaultValue === 'boolean') return (raw === 'true') as T;
   return raw as T;

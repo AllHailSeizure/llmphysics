@@ -57,7 +57,7 @@ async function parseAndDispatch(
       continue;
     }
 
-    if (definition.requiresArgument && argument == null) {
+    if (definition.requiresArgument && (argument === null || argument === undefined)) {
       log.warn(`Command !${commandName} requires an argument, none provided`);
       continue;
     }

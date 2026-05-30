@@ -104,7 +104,8 @@ export async function evaluateFloodStatus(
   // Prune entries outside the window, then fetch everything inside it
   await redis.zRemRangeByScore(POSTS_KEY, 0, cutoff - 1);
   const entries = await redis.zRange(POSTS_KEY, cutoff, now.getTime(), { by: 'score' });
-  const postIds = entries.map((e: any) => (typeof e === 'string' ? e : e.member));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const postIds = entries.map((e: any) => (typeof e === 'string' ? e : (e as { member: string }).member));
 
   // Fetch all hashes in parallel, filter for this user's posts
   const hashes = await Promise.all(

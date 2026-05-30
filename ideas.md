@@ -4,6 +4,8 @@ _Append with `/project-tracker idea "<text>"` or edit directly. Stays on `develo
 
 ## New Modules
 
+- [2026-05-29] **audit-logger** — Supabase-backed `moderation_events` table. Append-only write on any bot action (removal, lock, comment). All modules write to it as a side-effect. Makes bot history queryable via MCP. Free tier has ~490 MB headroom. Build as a standalone module with a shared `logEvent()` helper.
+
 ## Improvements to Existing Modules
 
 ## Experiments
