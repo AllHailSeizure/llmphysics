@@ -1,7 +1,7 @@
-import { reddit, redis } from '@devvit/web/server';
+import { reddit, redis, settings } from '@devvit/web/server';
 import type { OnPostSubmitRequest, OnModActionRequest, OnPostDeleteRequest } from '@devvit/web/shared';
 import { logger } from '../helpers/log-helper';
-import { readSetting, formatSignature } from '../helpers/settings-helper';
+import { formatSignature } from '../helpers/settings-helper';
 import { evaluateFloodStatus, trackPost, markPostModRemoved, markPostAutoRemoved, markPostDeleted } from '../helpers/redis-helper';
 import type { PostId, SettingDef } from '../types';
 
@@ -62,14 +62,14 @@ export async function runQuotaCheck(event: OnPostSubmitRequest): Promise<void> {
   }
 
   const [maxPosts, windowHours, ignoreModerators, ignoreContributors, ignoreAutoRemoved, ignoreRemoved, ignoreDeleted, enabled] = await Promise.all([
-    readSetting('floodAssistantMaxPosts', 1),
-    readSetting('floodAssistantWindowHours', 24),
-    readSetting('floodAssistantIgnoreModerators', true),
-    readSetting('floodAssistantIgnoreContributors', true),
-    readSetting('floodAssistantIgnoreAutoRemoved', true),
-    readSetting('floodAssistantIgnoreRemoved', true),
-    readSetting('floodAssistantIgnoreDeleted', true),
-    readSetting('floodModEnabled', true),
+    settings.get<number>('floodAssistantMaxPosts').then(v => v ?? 1),
+    settings.get<number>('floodAssistantWindowHours').then(v => v ?? 24),
+    settings.get<boolean>('floodAssistantIgnoreModerators').then(v => v ?? true),
+    settings.get<boolean>('floodAssistantIgnoreContributors').then(v => v ?? true),
+    settings.get<boolean>('floodAssistantIgnoreAutoRemoved').then(v => v ?? true),
+    settings.get<boolean>('floodAssistantIgnoreRemoved').then(v => v ?? true),
+    settings.get<boolean>('floodAssistantIgnoreDeleted').then(v => v ?? true),
+    settings.get<boolean>('floodModEnabled').then(v => v ?? true),
   ]);
 
   log.info('Quota check started', { postId, authorName, subredditName, maxPosts, windowHours });
@@ -176,10 +176,10 @@ export async function runQuotaCheck(event: OnPostSubmitRequest): Promise<void> {
     log.error('Failed to remove post', err, { postId });
   }
 
-  const responseText = await readSetting('floodAssistantResponse', '');
+  const responseText = (await settings.get<string>('floodAssistantResponse')) ?? '';
   if (removed && responseText) {
     try {
-      const rawSignature = await readSetting('botSignature', '');
+      const rawSignature = (await settings.get<string>('botSignature')) ?? '';
       const notice = responseText + formatSignature(rawSignature);
       const reply = await fullPost.addComment({ text: notice });
       try {

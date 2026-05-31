@@ -1,7 +1,7 @@
-import { reddit, redis } from '@devvit/web/server';
+import { reddit, redis, settings } from '@devvit/web/server';
 import type { OnPostFlairUpdateRequest, OnPostSubmitRequest } from '@devvit/web/shared';
 import { logger } from '../helpers/log-helper';
-import { readSetting, formatSignature } from '../helpers/settings-helper';
+import { formatSignature } from '../helpers/settings-helper';
 import type { PostId, SettingDef } from '../types';
 
 const log = logger('length-moderator');
@@ -47,7 +47,7 @@ async function enforce(
 }
 
 export async function run(event: OnPostSubmitRequest): Promise<void> {
-  const enabled = await readSetting('lengthModEnabled', true);
+  const enabled = (await settings.get<boolean>('lengthModEnabled')) ?? true;
   if (!enabled) return;
 
   const post = event.post;
@@ -70,12 +70,14 @@ export async function run(event: OnPostSubmitRequest): Promise<void> {
     log.warn('Failed to set expiration on dedup key', { error: (err as Error).message });
   }
 
-  const flairId = await readSetting('lengthModFlairId', '');
-  const maxUnhostedLength = await readSetting('lengthModMaxUnhostedLength', 0);
-  const minHostedLength = await readSetting('lengthModMinHostedLength', 0);
-  const unhostedComment = await readSetting('lengthModMaxUnhostedComment', '');
-  const hostedComment = await readSetting('lengthModMinHostedComment', '');
-  const rawSignature = await readSetting('botSignature', '');
+  const [flairId, maxUnhostedLength, minHostedLength, unhostedComment, hostedComment, rawSignature] = await Promise.all([
+    settings.get<string>('lengthModFlairId').then(v => v ?? ''),
+    settings.get<number>('lengthModMaxUnhostedLength').then(v => v ?? 0),
+    settings.get<number>('lengthModMinHostedLength').then(v => v ?? 0),
+    settings.get<string>('lengthModMaxUnhostedComment').then(v => v ?? ''),
+    settings.get<string>('lengthModMinHostedComment').then(v => v ?? ''),
+    settings.get<string>('botSignature').then(v => v ?? ''),
+  ]);
   const signature = formatSignature(rawSignature);
 
   const postBody = post.selftext ?? '';
@@ -111,7 +113,7 @@ export async function run(event: OnPostSubmitRequest): Promise<void> {
 }
 
 export async function runOnFlairUpdate(event: OnPostFlairUpdateRequest): Promise<void> {
-  const enabled = await readSetting('lengthModEnabled', true);
+  const enabled = (await settings.get<boolean>('lengthModEnabled')) ?? true;
   if (!enabled) return;
 
   const post = event.post;
@@ -136,8 +138,10 @@ export async function runOnFlairUpdate(event: OnPostFlairUpdateRequest): Promise
     log.warn('Failed to set expiration on flair dedup key', { error: (err as Error).message });
   }
 
-  const flairId = await readSetting('lengthModFlairId', '');
-  const maxUnhostedLength = await readSetting('lengthModMaxUnhostedLength', 0);
+  const [flairId, maxUnhostedLength] = await Promise.all([
+    settings.get<string>('lengthModFlairId').then(v => v ?? ''),
+    settings.get<number>('lengthModMaxUnhostedLength').then(v => v ?? 0),
+  ]);
 
   // Nothing to enforce if the rule isn't configured
   if (!flairId || maxUnhostedLength <= 0) return;
@@ -158,8 +162,10 @@ export async function runOnFlairUpdate(event: OnPostFlairUpdateRequest): Promise
 
   if (charCount > maxUnhostedLength) {
     log.info('Post exceeds max unhosted length (flair change)', { postId, charCount, maxUnhostedLength });
-    const unhostedComment = await readSetting('lengthModMaxUnhostedComment', '');
-    const rawSignature = await readSetting('botSignature', '');
+    const [unhostedComment, rawSignature] = await Promise.all([
+      settings.get<string>('lengthModMaxUnhostedComment').then(v => v ?? ''),
+      settings.get<string>('botSignature').then(v => v ?? ''),
+    ]);
     const signature = formatSignature(rawSignature);
     const fullPost = await reddit.getPostById(postId);
     await enforce(fullPost, postId, unhostedComment, signature, 'max-unhosted-flair-change', log);

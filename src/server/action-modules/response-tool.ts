@@ -1,8 +1,7 @@
 import type { Hono } from 'hono';
-import { redis, reddit } from '@devvit/web/server';
+import { redis, reddit, settings } from '@devvit/web/server';
 import type { MenuItemRequest, UiResponse } from '@devvit/web/shared';
 import { logger, logZSet } from '../helpers/log-helper';
-import { readSetting } from '../helpers/settings-helper';
 import type { CommentId, PostId, SettingDef } from '../types';
 
 const log = logger('response-tool');
@@ -151,7 +150,7 @@ export function register(app: Hono): void {
   // ─── Apply flow ───────────────────────────────────────────────────────────
 
   app.post('/internal/menu/apply-saved-response', async (c) => {
-    const enabled = await readSetting('responseToolEnabled', true);
+    const enabled = (await settings.get<boolean>('responseToolEnabled')) ?? true;
     if (!enabled) return c.json<UiResponse>({ showToast: 'Saved Responses is disabled.' });
 
     const { targetId } = await c.req.json<MenuItemRequest>();

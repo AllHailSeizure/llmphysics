@@ -4,7 +4,6 @@ import { appendBingoEvent } from './tile-validator-helper';
 const DEV_SUB = 'llmphysics_dev';
 
 export async function injectTestEvent(
-  redis: any,
   gameId: string,
   subredditName: string,
   event: BingoEvent
@@ -12,6 +11,6 @@ export async function injectTestEvent(
   if (subredditName !== DEV_SUB) {
     return { ok: false, reason: `Injection blocked: only allowed on r/${DEV_SUB}` };
   }
-  await appendBingoEvent(redis, gameId, event);
+  await appendBingoEvent(gameId, event);
   return { ok: true };
 }

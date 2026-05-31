@@ -3,7 +3,7 @@ import { reddit, redis, settings } from '@devvit/web/server';
 import type { MenuItemRequest, UiResponse } from '@devvit/web/shared';
 import type { PostId } from '../types';
 import { logger } from '../helpers/log-helper';
-import { readSetting, writeSetting, formatSignature } from '../helpers/settings-helper';
+import { writeSetting, formatSignature } from '../helpers/settings-helper';
 
 const log = logger('adversarial-reviewer');
 
@@ -99,7 +99,10 @@ async function callGemini(title: string, body: string, apiKey: string): Promise<
   }
   if (!res.ok) throw new Error(`Gemini API ${res.status}`);
 
-  const data = await res.json() as any;
+  type GeminiResponse = {
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+  };
+  const data = await res.json() as GeminiResponse;
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
   return text ? { text, model } : null;
 }
@@ -110,7 +113,7 @@ export function register(app: Hono): void {
 
   // ── Menu: Request Adversarial Review ────────────────────────────────────────
   app.post('/internal/menu/adversarial-review', async (c) => {
-    const enabled = await readSetting('adversarialReviewerEnabled', false);
+    const enabled = (await settings.get<boolean>('adversarialReviewerEnabled')) ?? false;
     if (!enabled) {
       return c.json<UiResponse>({ showToast: { text: 'Adversarial reviewer is disabled.', appearance: 'neutral' } });
     }
@@ -152,21 +155,31 @@ export function register(app: Hono): void {
       return c.json<UiResponse>({ showToast: { text: 'Failed to fetch post.', appearance: 'neutral' } });
     }
 
-    const postBody      = (fullPost as any).selftext ?? (fullPost as any).body ?? '';
-    const postUrl       = (fullPost as any).url as string | undefined;
-    const subredditName = ((fullPost as any).subredditName as string) ?? '';
+    type PostDetails = {
+      selftext?: string;
+      body?: string;
+      url?: string;
+      subredditName?: string;
+      removed?: boolean;
+      spam?: boolean;
+      flair?: { templateId?: string };
+    };
+    const p = fullPost as typeof fullPost & PostDetails;
+    const postBody      = p.selftext ?? p.body ?? '';
+    const postUrl       = p.url as string | undefined;
+    const subredditName = p.subredditName ?? '';
 
     // Gate: removed / spam
-    if ((fullPost as any).removed || (fullPost as any).spam) {
+    if (p.removed || p.spam) {
       await redis.del(dedupeKey);
       await redis.zRem(ACTIVE_LOCKS_KEY, [postId as string]);
       return c.json<UiResponse>({ showToast: { text: 'Removed posts cannot be reviewed.', appearance: 'neutral' } });
     }
 
     // Gate: flair (skip if setting is empty — allow any flair)
-    const requiredFlairId = await readSetting('adversarialReviewerFlairId', '');
+    const requiredFlairId = (await settings.get<string>('adversarialReviewerFlairId')) ?? '';
     if (requiredFlairId) {
-      const postFlairId = (fullPost as any).flair?.templateId;
+      const postFlairId = p.flair?.templateId;
       if (!postFlairId || postFlairId !== requiredFlairId) {
         await redis.del(dedupeKey);
         await redis.zRem(ACTIVE_LOCKS_KEY, [postId as string]);
@@ -263,7 +276,7 @@ export function register(app: Hono): void {
       return c.json<UiResponse>({ showToast: { text: 'Gemini returned an empty review.', appearance: 'neutral' } });
     }
 
-    const rawSignature = await readSetting('botSignature', '');
+    const rawSignature = (await settings.get<string>('botSignature')) ?? '';
     const signature    = formatSignature(rawSignature);
     try {
       const comment = await fullPost.addComment({ text: result.text + signature });
@@ -292,14 +305,15 @@ export function register(app: Hono): void {
     const supabaseKey = (await settings.get<string>('supabaseServiceRoleKey')) || '';
     if (!supabaseUrl || !supabaseKey) return c.json({ status: 'no supabase config' });
 
-    const rawSignature = await readSetting('botSignature', '');
+    const rawSignature = (await settings.get<string>('botSignature')) ?? '';
     const signature    = formatSignature(rawSignature);
     const cutoff       = Date.now() - PDF_JOB_TTL_SECS * 1000;
 
     // Get all pending postIds from the sorted set (score = enqueue timestamp).
     // zRange returns { member: string } objects in this Devvit version — extract member.
     const pendingRaw = await redis.zRange(PENDING_JOBS_KEY, 0, -1);
-    const pendingIds = pendingRaw.map((e: any) => (typeof e === 'string' ? e : (e.member as string)));
+    type ZEntry = string | { member: string };
+    const pendingIds = pendingRaw.map((e: ZEntry) => (typeof e === 'string' ? e : e.member));
     if (!pendingIds.length) return c.json({ status: 'nothing pending' });
 
     log.info('PDF poll tick', { count: pendingIds.length });
@@ -334,7 +348,8 @@ export function register(app: Hono): void {
           // Post the review comment and clean up
           try {
             const fullPost      = await reddit.getPostById(postId as PostId);
-            const subredditName = ((fullPost as any).subredditName as string) ?? '';
+            type FullPostDetails = { subredditName?: string };
+            const subredditName = ((fullPost as typeof fullPost & FullPostDetails).subredditName) ?? '';
             const comment       = await fullPost.addComment({ text: job.result + signature });
             await comment.distinguish(true);
             log.info('PDF review posted', { postId, commentId: comment.id });
@@ -368,12 +383,13 @@ export function register(app: Hono): void {
 
   // ── Menu: LLM Reviewer Settings (mod-only, subreddit) ──────────────────────
   app.post('/internal/menu/bot-settings-adversarial', async (c) => {
-    const flairId = await readSetting('adversarialReviewerFlairId', '');
+    const flairId = (await settings.get<string>('adversarialReviewerFlairId')) ?? '';
 
     // Clean expired lock entries, then get active ones
     await redis.zRemRangeByScore(ACTIVE_LOCKS_KEY, 0, Date.now() - 1);
     const rawLocks = await redis.zRange(ACTIVE_LOCKS_KEY, 0, -1);
-    const lockedIds = rawLocks.map((e: any) => (typeof e === 'string' ? e : (e.member as string)));
+    type ZEntry = string | { member: string };
+    const lockedIds = rawLocks.map((e: ZEntry) => (typeof e === 'string' ? e : e.member));
 
     // Fetch post titles (cap at 20 to avoid timeout)
     const lockOptions: { label: string; value: string }[] = [];

@@ -97,41 +97,6 @@
         "endpoint": "/internal/menu/quota-viewer"
       },
       {
-        "label": "Module Toggles",
-        "description": "Enable or disable modules.",
-        "forUserType": "moderator",
-        "location": "subreddit",
-        "endpoint": "/internal/menu/bot-settings-modules"
-      },
-      {
-        "label": "Flood Settings",
-        "description": "Configure flood moderator limits and filters.",
-        "forUserType": "moderator",
-        "location": "subreddit",
-        "endpoint": "/internal/menu/bot-settings-flood"
-      },
-      {
-        "label": "Comment Settings",
-        "description": "Configure depth cap and self-response rules.",
-        "forUserType": "moderator",
-        "location": "subreddit",
-        "endpoint": "/internal/menu/bot-settings-commenting"
-      },
-      {
-        "label": "Post Settings",
-        "description": "Configure post length limits.",
-        "forUserType": "moderator",
-        "location": "subreddit",
-        "endpoint": "/internal/menu/bot-settings-posting"
-      },
-      {
-        "label": "Bot Messages",
-        "description": "Configure bot signature and removal messages.",
-        "forUserType": "moderator",
-        "location": "subreddit",
-        "endpoint": "/internal/menu/bot-settings-removal-messages"
-      },
-      {
         "label": "LLM Reviewer Settings",
         "description": "Manage LLM reviewer settings and clear review locks.",
         "forUserType": "moderator",
@@ -163,11 +128,6 @@
     "saved-response-edit-select": "/internal/forms/saved-response/edit-select",
     "saved-response-edit-apply":  "/internal/forms/saved-response/edit-apply",
     "saved-response-delete":      "/internal/forms/saved-response/delete",
-    "bot-settings-modules":       "/internal/forms/bot-settings-modules",
-    "bot-settings-flood":         "/internal/forms/bot-settings-flood",
-    "bot-settings-commenting":    "/internal/forms/bot-settings-commenting",
-    "bot-settings-posting":       "/internal/forms/bot-settings-posting",
-    "bot-settings-removal-messages": "/internal/forms/bot-settings-removal-messages",
     "quota-viewer-search":        "/internal/forms/quota-viewer-search",
     "quota-viewer-result":        "/internal/forms/quota-viewer-result",
     "bingo-settings":             "/internal/forms/bingo-settings",
@@ -203,7 +163,7 @@
       },
       "depthCap": {
         "type": "number",
-        "label": "Chain Moderation — Maximum comment chain depth",
+        "label": "Depth Cap — Maximum comment depth",
         "helpText": "Lock comment chains that reach this depth. Set to 0 to disable. Default: 10.",
         "defaultValue": 10
       },
@@ -275,6 +235,110 @@
         "label": "Self-Response Moderator — Ignore approved submitters",
         "helpText": "If enabled, the self-response rule will not apply to approved submitters.",
         "defaultValue": true
+      },
+      "depthCapModEnabled": {
+        "type": "boolean",
+        "label": "Depth Cap — Enable",
+        "helpText": "Enable or disable the depth cap module.",
+        "defaultValue": true
+      },
+      "depthCapIgnoreModerators": {
+        "type": "boolean",
+        "label": "Depth Cap — Ignore moderators",
+        "helpText": "Moderators are exempt from the depth cap.",
+        "defaultValue": true
+      },
+      "depthCapIgnoreContributors": {
+        "type": "boolean",
+        "label": "Depth Cap — Ignore approved submitters",
+        "helpText": "Approved submitters are exempt from the depth cap.",
+        "defaultValue": true
+      },
+      "floodModEnabled": {
+        "type": "boolean",
+        "label": "Flood Moderator — Enable",
+        "helpText": "Enable or disable the flood moderator.",
+        "defaultValue": true
+      },
+      "selfResponseModEnabled": {
+        "type": "boolean",
+        "label": "Self-Response Moderator — Enable",
+        "helpText": "Enable or disable the self-response moderator.",
+        "defaultValue": true
+      },
+      "lengthModEnabled": {
+        "type": "boolean",
+        "label": "Length Moderator — Enable",
+        "helpText": "Enable or disable the length moderator.",
+        "defaultValue": true
+      },
+      "lengthModFlairId": {
+        "type": "string",
+        "label": "Length Moderator — Restricted flair template ID",
+        "helpText": "Posts with this flair are subject to the maximum length limit. Leave blank to disable."
+      },
+      "lengthModMaxUnhostedLength": {
+        "type": "number",
+        "label": "Length Moderator — Max unhosted length (characters)",
+        "helpText": "Maximum character count for posts with the restricted flair. 0 = disabled.",
+        "defaultValue": 0
+      },
+      "lengthModMinHostedLength": {
+        "type": "number",
+        "label": "Length Moderator — Min hosted length (characters)",
+        "helpText": "Minimum character count for link posts. 0 = disabled.",
+        "defaultValue": 0
+      },
+      "lengthModMaxUnhostedComment": {
+        "type": "paragraph",
+        "label": "Length Moderator — Over-length removal message",
+        "helpText": "Posted when a post exceeds the maximum length for its flair."
+      },
+      "lengthModMinHostedComment": {
+        "type": "paragraph",
+        "label": "Length Moderator — Under-length removal message",
+        "helpText": "Posted when a link post is below the minimum length."
+      },
+      "mopToolEnabled": {
+        "type": "boolean",
+        "label": "Chain Mop — Enable",
+        "helpText": "Enable or disable the Chain Mop action.",
+        "defaultValue": true
+      },
+      "responseToolEnabled": {
+        "type": "boolean",
+        "label": "Saved Responses — Enable",
+        "helpText": "Enable or disable the Saved Responses action.",
+        "defaultValue": true
+      },
+      "defineCommandEnabled": {
+        "type": "boolean",
+        "label": "Define Command — Enable",
+        "helpText": "Enable or disable the !define command.",
+        "defaultValue": true
+      },
+      "defineCommandCategory": {
+        "type": "string",
+        "label": "Define Command — Subject category",
+        "helpText": "Category used for term disambiguation in the !define command.",
+        "defaultValue": "physics, mathematics, and AI"
+      },
+      "defineCommandSearchGrounding": {
+        "type": "boolean",
+        "label": "Define Command — Search grounding",
+        "helpText": "Enable Google Search grounding for the !define command.",
+        "defaultValue": true
+      },
+      "adversarialReviewerEnabled": {
+        "type": "boolean",
+        "label": "Adversarial Reviewer — Enable",
+        "helpText": "Enable or disable the Adversarial Reviewer action.",
+        "defaultValue": false
+      },
+      "adversarialReviewerFlairId": {
+        "type": "string",
+        "label": "Adversarial Reviewer — Required flair template ID",
+        "helpText": "If set, only posts with this flair can request a review. Leave blank to allow any post."
       }
     }
   },

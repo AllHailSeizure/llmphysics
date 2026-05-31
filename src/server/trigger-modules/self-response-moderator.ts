@@ -1,7 +1,7 @@
-import { reddit, redis } from '@devvit/web/server';
+import { reddit, redis, settings } from '@devvit/web/server';
 import type { OnCommentCreateRequest } from '@devvit/web/shared';
 import { logger, logZSet } from '../helpers/log-helper';
-import { readSetting, formatSignature } from '../helpers/settings-helper';
+import { formatSignature } from '../helpers/settings-helper';
 import type { CommentId, SettingDef } from '../types';
 
 const log = logger('self-response-moderator');
@@ -9,7 +9,7 @@ const SRM_LOG_KEY = 'bot:srmod:log';
 const SRM_LOG_MAX = 200;
 
 export async function run(event: OnCommentCreateRequest): Promise<void> {
-  const enabled = await readSetting('selfResponseModEnabled', true);
+  const enabled = (await settings.get<boolean>('selfResponseModEnabled')) ?? true;
   if (!enabled) return;
 
   const cv2 = event.comment;
@@ -31,8 +31,10 @@ export async function run(event: OnCommentCreateRequest): Promise<void> {
     log.warn('Failed to set expiration on dedup key', { dedupeKey, expireSeconds: 3600, error: (err as Error).message });
   }
 
-  const ignoreModerators = await readSetting('selfResponseIgnoreModerators', true);
-  const ignoreContributors = await readSetting('selfResponseIgnoreContributors', true);
+  const [ignoreModerators, ignoreContributors] = await Promise.all([
+    settings.get<boolean>('selfResponseIgnoreModerators').then(v => v ?? true),
+    settings.get<boolean>('selfResponseIgnoreContributors').then(v => v ?? true),
+  ]);
 
   if ((ignoreModerators || ignoreContributors) && event.author?.name && event.subreddit?.name) {
     const subredditName = event.subreddit.name;
@@ -64,9 +66,11 @@ export async function run(event: OnCommentCreateRequest): Promise<void> {
 
   const comment = await reddit.getCommentById(cv2.id as CommentId);
 
-  const selfResponseResponse = await readSetting('selfResponseResponse', '');
+  const [selfResponseResponse, rawSignature] = await Promise.all([
+    settings.get<string>('selfResponseResponse').then(v => v ?? ''),
+    settings.get<string>('botSignature').then(v => v ?? ''),
+  ]);
   if (selfResponseResponse) {
-    const rawSignature = await readSetting('botSignature', '');
     const notice = selfResponseResponse + formatSignature(rawSignature);
     try {
       const reply = await comment.reply({ text: notice });

@@ -1,7 +1,7 @@
 import { reddit, settings } from '@devvit/web/server';
 import { logger } from '../helpers/log-helper';
 import { registerCommand } from '../helpers/command-helper';
-import { readSetting, formatSignature } from '../helpers/settings-helper';
+import { formatSignature } from '../helpers/settings-helper';
 import type { CommandEvent, SettingDef } from '../types';
 
 const log = logger('define');
@@ -40,7 +40,7 @@ async function geminiResolve(term: string, apiKey: string, category: string, sea
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
-      tools: [{ google_search: {} }],
+      ...(searchGrounding ? { tools: [{ google_search: {} }] } : {}),
       generationConfig: { maxOutputTokens: 40, temperature: 0 },
     }),
   };
@@ -55,7 +55,13 @@ async function geminiResolve(term: string, apiKey: string, category: string, sea
 
   if (!res.ok) throw new Error(`Gemini API ${res.status}`);
 
-  const data = await res.json() as any;
+  type GeminiResolveResponse = {
+    candidates?: Array<{
+      content?: { parts?: Array<{ text?: string }> };
+      groundingMetadata?: unknown;
+    }>;
+  };
+  const data = await res.json() as GeminiResolveResponse;
 
   // Check if grounding was actually used for debugging/testing
   if (data.candidates?.[0]?.groundingMetadata) {
@@ -124,7 +130,7 @@ function truncate(text: string): string {
 registerCommand(
   { commandName: 'define', contentType: 'comment', requiresArgument: true },
   async (event: CommandEvent, argument: string | null) => {
-    const enabled = await readSetting('defineCommandEnabled', true);
+    const enabled = (await settings.get<boolean>('defineCommandEnabled')) ?? true;
     if (!enabled) return;
 
     if (!('comment' in event) || !event.comment) return;
@@ -139,8 +145,10 @@ registerCommand(
       return;
     }
 
-    const category = await readSetting('defineCommandCategory', 'physics, mathematics, and AI');
-    const searchGrounding = await readSetting('defineCommandSearchGrounding', true);
+    const [category, searchGrounding] = await Promise.all([
+      settings.get<string>('defineCommandCategory').then(v => v ?? 'physics, mathematics, and AI'),
+      settings.get<boolean>('defineCommandSearchGrounding').then(v => v ?? true),
+    ]);
 
     let replyText: string;
     try {
@@ -162,7 +170,7 @@ registerCommand(
       replyText = `Failed to look up "${term}" — please try again later.`;
     }
 
-    const rawSignature = await readSetting('botSignature', '');
+    const rawSignature = (await settings.get<string>('botSignature')) ?? '';
     const comment = await reddit.getCommentById(commentId);
     await comment.reply({ text: replyText + formatSignature(rawSignature) });
     log.info('Definition reply posted', { term, commentId });

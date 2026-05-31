@@ -1,11 +1,22 @@
 import type { Hono } from 'hono';
-import { redis, reddit } from '@devvit/web/server';
+import { redis, reddit, settings } from '@devvit/web/server';
 import type { MenuItemRequest, UiResponse } from '@devvit/web/shared';
 import { logger, logZSet } from '../helpers/log-helper';
-import { readSetting } from '../helpers/settings-helper';
-import type { CommentId, SettingDef } from '../types';
+import type { CommentId } from '../types';
 
-const log = logger('mop-tool');
+export const MODULE = {
+  name: 'mop-tool',
+  type: 'action',
+  description: 'Removes and/or locks a comment chain via a moderator menu action.',
+  triggers: [],
+  redisKeys: [
+    'bot:chainmod:session:{username}',
+    'bot:chainmod:log',
+  ],
+  settings: ['mopToolEnabled'],
+} as const;
+
+const log = logger(MODULE.name);
 const CHAIN_LOG_KEY = 'bot:chainmod:log';
 const CHAIN_LOG_MAX = 200;
 const SESSION_TTL = 300;
@@ -36,7 +47,7 @@ async function collectSubtree(commentId: CommentId, skipDistinguished: boolean):
     const childIds = await collectSubtree(reply.id as CommentId, skipDistinguished);
     ids.push(...childIds);
   }
-  if (!skipDistinguished || comment.distinguishedBy == null) {
+  if (!skipDistinguished || comment.distinguishedBy === null || comment.distinguishedBy === undefined) {
     ids.push(commentId); // post-order: deepest children first
   }
   return ids;
@@ -55,7 +66,7 @@ async function lockSubtree(commentId: CommentId, skipDistinguished: boolean): Pr
   for (const reply of replies) {
     count += await lockSubtree(reply.id as CommentId, skipDistinguished);
   }
-  if (!comment.locked && (!skipDistinguished || comment.distinguishedBy == null)) {
+  if (!comment.locked && (!skipDistinguished || comment.distinguishedBy === null || comment.distinguishedBy === undefined)) {
     try {
       await comment.lock();
       count++;
@@ -119,8 +130,8 @@ export async function runChainMop(
 
 export function register(app: Hono): void {
   app.post('/internal/menu/chain-mop', async (c) => {
-    const enabled = await readSetting('mopToolEnabled', true);
-    if (!enabled) return c.json<UiResponse>({ showToast: 'Chain Mop is disabled.' });
+    const enabled = (await settings.get<boolean>('mopToolEnabled')) ?? true;
+    if (!enabled) return c.json<UiResponse>({ showToast: { text: 'Chain Mop is disabled. Enable it in bot settings.', appearance: 'neutral' } });
 
     const { targetId } = await c.req.json<MenuItemRequest>();
     const mod = (await reddit.getCurrentUsername()) ?? 'unknown';
@@ -156,7 +167,7 @@ export function register(app: Hono): void {
     }
     const targetId = session.targetId as CommentId;
 
-    log.info('Chain mop triggered', { targetId, by: mod, remove, lock, skipDistinguished });
+    log.info('chain_mop_triggered', { targetId, by: mod, remove, lock, skipDistinguished });
 
     const { removed, locked, removeFailed, lockFailed } = await runChainMop(targetId, { remove, lock, skipDistinguished }, mod);
 
@@ -172,17 +183,3 @@ export function register(app: Hono): void {
   });
 }
 
-export const MOP_TOOL_SETTINGS = {
-  enabled: [
-    {
-      key: 'mopToolEnabled',
-      defaultValue: true,
-      field: {
-        type: 'boolean',
-        name: 'mopToolEnabled',
-        label: 'Chain Mop',
-        helpText: 'Enable or disable the chain mop action.',
-      },
-    } as SettingDef,
-  ],
-};

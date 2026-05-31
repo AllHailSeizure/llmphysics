@@ -1,3 +1,6 @@
+import { redis } from '@devvit/redis';
+import { reddit } from '@devvit/web/server';
+
 export type BingoEventType = 'post_submit' | 'comment_create' | 'post_delete' | 'post_report' | 'comment_report' | 'mod_action';
 
 export type BingoEvent = {
@@ -37,7 +40,6 @@ export const TILE_VALIDATORS: TileValidatorDefinition[] = [
 ];
 
 export async function appendBingoEvent(
-  redis: any,
   gameId: string,
   event: BingoEvent
 ): Promise<void> {
@@ -51,7 +53,15 @@ export async function appendBingoEvent(
 
 type ThreadNode = { author: string; body: string; replies: ThreadNode[] };
 
-function buildThreadTree(comments: any[]): ThreadNode[] {
+type RawComment = {
+  id?: string;
+  authorName?: string;
+  author?: { name?: string };
+  body?: string;
+  parentId?: string;
+};
+
+function buildThreadTree(comments: RawComment[]): ThreadNode[] {
   const wrapped = new Map<string, { node: ThreadNode; parentId: string }>();
   for (const c of comments) {
     if (!c?.id) continue;
@@ -73,11 +83,13 @@ function buildThreadTree(comments: any[]): ThreadNode[] {
   return roots;
 }
 
-async function fetchComments(reddit: any, postId: string): Promise<any[]> {
+async function fetchComments(postId: string): Promise<RawComment[]> {
   try {
-    const result: any = await reddit.getComments({ postId, limit: 200 });
-    if (result && typeof result.all === 'function') return await result.all();
-    if (Array.isArray(result)) return result;
+    const result = await reddit.getComments({ postId, limit: 200 });
+    if (result && typeof (result as { all?: unknown }).all === 'function') {
+      return await (result as { all: () => Promise<RawComment[]> }).all();
+    }
+    if (Array.isArray(result)) return result as RawComment[];
     return [];
   } catch (err) {
     console.error(`getComments failed for ${postId}:`, err);
@@ -88,8 +100,6 @@ async function fetchComments(reddit: any, postId: string): Promise<any[]> {
 // ─── Batch validation ──────────────────────────────────────────────────────────
 
 export async function runBatchValidation(
-  redis: any,
-  reddit: any,
   geminiApiKey: string,
   gameId: string
 ): Promise<void> {
@@ -126,7 +136,7 @@ export async function runBatchValidation(
   const threads = await Promise.all(
     postIds.map(async (postId) => {
       const meta = postEvents.find((e: BingoEvent) => e.postId === postId);
-      const comments = await fetchComments(reddit, postId);
+      const comments = await fetchComments(postId);
       return {
         postId,
         title: meta?.title ?? '',

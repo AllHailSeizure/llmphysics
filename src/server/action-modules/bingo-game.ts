@@ -5,7 +5,7 @@ import { TILE_VALIDATORS, appendBingoEvent, runBatchValidation, type BingoEvent 
 import { injectTestEvent } from '../helpers/bingo-event-injector';
 import { tagPostWithGame } from '../helpers/redis-helper';
 import { readSetting, writeSetting } from '../helpers/settings-helper';
-import type { UiResponse } from '@devvit/web/shared';
+import type { UiResponse, OnCommentCreateRequest, OnPostSubmitRequest, OnPostReportRequest, OnModActionRequest } from '@devvit/web/shared';
 
 type TileDefinition = {
   label: string;
@@ -202,7 +202,7 @@ async function announceWinners(gameId: string): Promise<void> {
 
 // ─── Trigger handlers for event capture ────────────────────────────────────────
 
-export async function captureCommentEvent(event: any): Promise<void> {
+export async function captureCommentEvent(event: OnCommentCreateRequest): Promise<void> {
   try {
     const raw = await redis.get('bot:bingo:current-game');
     if (!raw) return;
@@ -210,7 +210,7 @@ export async function captureCommentEvent(event: any): Promise<void> {
     const postId = event?.post?.id;
     if (!postId) return;
     const body = event?.comment?.body ?? '';
-    await appendBingoEvent(redis, gameId, {
+    await appendBingoEvent(gameId, {
       type: 'comment_create',
       ts: Date.now(),
       author: event?.comment?.author?.name,
@@ -222,7 +222,7 @@ export async function captureCommentEvent(event: any): Promise<void> {
   }
 }
 
-export async function capturePostEvent(event: any): Promise<void> {
+export async function capturePostEvent(event: OnPostSubmitRequest): Promise<void> {
   try {
     const raw = await redis.get('bot:bingo:current-game');
     if (!raw) return;
@@ -232,7 +232,7 @@ export async function capturePostEvent(event: any): Promise<void> {
     await tagPostWithGame(postId, gameId);
     await redis.hSet(`bot:bingo:game:${gameId}:posts`, { [postId]: '1' });
     await redis.expire(`bot:bingo:game:${gameId}:posts`, GAME_TTL_SECS);
-    await appendBingoEvent(redis, gameId, {
+    await appendBingoEvent(gameId, {
       type: 'post_submit',
       ts: Date.now(),
       author: event?.post?.author?.name,
@@ -245,14 +245,14 @@ export async function capturePostEvent(event: any): Promise<void> {
   }
 }
 
-export async function capturePostReportEvent(event: any): Promise<void> {
+export async function capturePostReportEvent(event: OnPostReportRequest): Promise<void> {
   try {
     const raw = await redis.get('bot:bingo:current-game');
     if (!raw) return;
     const { gameId } = JSON.parse(raw) as { gameId: string; startedAt: number };
     const postId = event?.post?.id;
     if (!postId) return;
-    await appendBingoEvent(redis, gameId, {
+    await appendBingoEvent(gameId, {
       type: 'post_report',
       ts: Date.now(),
       postId,
@@ -263,14 +263,14 @@ export async function capturePostReportEvent(event: any): Promise<void> {
   }
 }
 
-export async function captureModActionEvent(event: any): Promise<void> {
+export async function captureModActionEvent(event: OnModActionRequest): Promise<void> {
   try {
     const raw = await redis.get('bot:bingo:current-game');
     if (!raw) return;
     const { gameId } = JSON.parse(raw) as { gameId: string; startedAt: number };
     const postId = event?.targetPost?.id ?? event?.post?.id;
     if (!postId) return;
-    await appendBingoEvent(redis, gameId, {
+    await appendBingoEvent(gameId, {
       type: 'mod_action',
       ts: Date.now(),
       postId,
@@ -346,7 +346,7 @@ export function register(app: Hono): void {
       if (!raw) return c.json({ status: 'no active game' });
       const { gameId } = JSON.parse(raw) as { gameId: string };
       const geminiApiKey = await settings.get<string>('geminiApiKey');
-      await runBatchValidation(redis, reddit, geminiApiKey ?? '', gameId);
+      await runBatchValidation(geminiApiKey ?? '',gameId);
       await announceWinners(gameId);
       return c.json({ status: 'ok' });
     } catch (error) {
@@ -471,7 +471,7 @@ export function register(app: Hono): void {
     if (eventType && eventType !== '' && body.injectContent) {
       if (activeGame) {
         const subredditName = context.subredditName ?? '';
-        const result = await injectTestEvent(redis, activeGame.gameId, subredditName, {
+        const result = await injectTestEvent(activeGame.gameId, subredditName, {
           type: eventType as BingoEvent['type'],
           ts: Date.now(),
           author: body.injectAuthor || 'test_user',
@@ -491,7 +491,7 @@ export function register(app: Hono): void {
       } else {
         try {
           const geminiApiKey = await settings.get<string>('geminiApiKey');
-          await runBatchValidation(redis, reddit, geminiApiKey ?? '', activeGame.gameId);
+          await runBatchValidation(geminiApiKey ?? '',activeGame.gameId);
           await announceWinners(activeGame.gameId);
           toastParts.push('Batch validation ran.');
         } catch (err) {
