@@ -1,4 +1,4 @@
-# llmphysics-bot  2.12.0 — Moderator Guide
+# llmphysics-bot  2.13.0 — Moderator Guide
 
 A modular moderation-assistance bot for [r/LLMPhysics](https://reddit.com/r/LLMPhysics), built on the [Devvit](https://developers.reddit.com/docs) platform.
 
@@ -34,42 +34,49 @@ Available via the **Mod Shield** icon on posts and comments:
 
 ---
 
-## 2. Settings Guide (v2.12.0)
-Moderators can manage all bot behaviors in the **Bot Settings** menu (found under the Subreddit header overflow menu). Settings are organized into five main categories:
+## 2. Settings Guide (v2.13.0)
+Moderators configure all bot settings via the **Reddit app installation settings page** at `https://developers.reddit.com/r/YOUR_SUBREDDIT/apps/llmphysics-bot`. Settings are grouped by module and take effect immediately.
 
-### Modules
-Enable or disable specific features:
-*   **Depth Cap Moderator**
-*   **Flood Moderator**
-*   **Self-Response Moderator**
-*   **Length Moderator**
-*   **Chain Mop**
-*   **Saved Responses**
-*   **Define Command**
-
-### 
+### Module toggles
+Enable or disable each module independently:
+*   **Depth Cap — Enable**
+*   **Flood Moderator — Enable**
+*   **Self-Response Moderator — Enable**
+*   **Length Moderator — Enable**
+*   **Chain Mop — Enable**
+*   **Saved Responses — Enable**
+*   **Define Command — Enable**
+*   **Adversarial Reviewer — Enable**
 
 ### Flood Moderator
-Manage spam controls:
-*   **Max posts per window:** The limit of submissions allowed for a single user within the defined timeframe.
-*   **Time window (hours):** The rolling duration (in hours) to enforce the post limit.
-*   **Ignore flags:** Toggle automatic exemptions for Moderators, Approved Submitters, and various types of removed/deleted posts to prevent over-moderation of legitimate activity.
+*   **Max posts per window** / **Window (hours):** Quota limits.
+*   **Ignore flags:** Exemptions for Moderators, Approved Submitters, auto-removed, mod-removed, and deleted posts.
+*   **Flood removal message:** Text posted when a user exceeds their quota.
 
-### Commenting
-Configure settings for comment interactions:
-*   **Depth cap:** Maximum allowed depth for conversation branches before they are automatically locked.
-*   **Ignore flags:** Toggle exemptions (Moderators/Approved Submitters) for both the **Depth Cap** and **Self-Response** modules.
+### Depth Cap
+*   **Maximum comment depth:** Depth at which chains are locked (0 = disabled).
+*   **Ignore moderators / Ignore approved submitters:** Exemption flags.
+*   **Depth cap triggered comment:** Text posted when the cap fires.
 
-### Posting
-Configure settings for post requirements:
-*   **Flair template ID for max length posts:** Specify the Reddit flair template ID that triggers these character limits.
-*   **Max unhosted length:** The maximum allowed character count for posts bearing the specified flair.
-*   **Min hosted length:** The minimum allowed character count required for link (hosted) posts to ensure quality discussions.
+### Self-Response Moderator
+*   **Ignore moderators / Ignore approved submitters:** Exemption flags.
+*   **Self-response removal message:** Text posted on enforcement.
 
-### Removal Messages
-Customize the text users receive when content is removed or restricted:
-*   **Bot signature:** The identifier appended to all bot comments (automatically formatted as superscript). Leave blank to disable.
-*   **Custom responses:** Tailored messages for Flood, Depth Cap, Self-Response, and Length-based removals.
+### Length Moderator
+*   **Restricted flair template ID:** Flair that triggers the length limit.
+*   **Max unhosted length / Min hosted length:** Character count thresholds (0 = disabled).
+*   **Over-length / Under-length removal messages:** Text posted on each enforcement.
+
+### Define Command
+*   **Subject category:** Domain used for Wikipedia disambiguation (default: "physics, mathematics, and AI").
+*   **Search grounding:** Enables Google Search grounding for term resolution.
+
+### Adversarial Reviewer
+*   **Required flair template ID:** Restrict reviews to posts with this flair (blank = any flair).
+
+### General
+*   **Bot signature:** Appended to all bot comments as superscript. Leave blank to disable.
+*   **Adversarial Reviewer — Required flair template ID:** (also appears here for convenience)
 ## 3. Interaction Commands
 
 Any user can trigger a definition by mentioning the bot in a comment:
