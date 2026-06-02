@@ -76,7 +76,7 @@ export async function runQuotaCheck(event: OnPostSubmitRequest): Promise<void> {
 
   let user;
   try {
-    user = await reddit.getUserByUsername(authorName);
+    user = await reddit.getUserById(author.id as `t2_${string}`);
   } catch (err) {
     log.error('Failed to fetch user', err, { authorName });
     return;
@@ -93,8 +93,8 @@ export async function runQuotaCheck(event: OnPostSubmitRequest): Promise<void> {
   let isApprovedUser = false;
 
   try {
-    const modPerms = await user.getModPermissionsForSubreddit(subredditName);
-    isModerator = modPerms.length > 0;
+    const mods = await reddit.getModerators({ subredditName, username: authorName }).all();
+    isModerator = mods.length > 0;
   } catch (err) {
     log.warn('Could not check moderator status', { error: (err as Error).message, authorName });
   }

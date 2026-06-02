@@ -193,13 +193,13 @@ export function register(app: Hono): void {
       if (currentUser) {
         let isModerator = false;
         try {
-          const modPerms = await currentUser.getModPermissionsForSubreddit(subredditName);
-          isModerator = modPerms.length > 0;
+          const mods = await reddit.getModerators({ subredditName, username: currentUser.username });
+          isModerator = mods.length > 0;
         } catch (err) {
-          log.warn('Could not check mod status', { error: (err as Error).message });
+          log.warn('mod_check_failed', { error: (err as Error).message });
         }
 
-        if (!isModerator) {
+        if (!isModerator && subredditName.toLowerCase() !== DEV_SUB) {
           const dayKey      = new Date().toISOString().slice(0, 10); // YYYY-MM-DD UTC
           const userQuotaKey = `bot:adversarial:user:${currentUser.id}:${dayKey}`;
           const quotaUsed   = await redis.get(userQuotaKey);

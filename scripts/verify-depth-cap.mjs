@@ -126,6 +126,11 @@ function assert(cond, msg) {
 const BOT_WAIT_MS = 5000; // time to wait for bot to process after final comment
 
 const AUTO = process.argv.includes('--auto');
+const TEST5 = process.argv.includes('--test5'); // module disabled
+const TEST6 = process.argv.includes('--test6'); // cap=3
+const TEST7 = process.argv.includes('--test7'); // custom response
+const TEST8 = process.argv.includes('--test8'); // mod exempt
+const SINGLE_TEST = TEST5 || TEST6 || TEST7 || TEST8;
 
 console.log('\n=== depth-cap-moderator verification ===\n');
 console.log('PRE-CONDITIONS:');
@@ -135,10 +140,12 @@ console.log('  • depthCapIgnoreModerators = false');
 console.log('  • depthCapIgnoreContributors = false  (AllHailSeizure is a contributor on this sub)');
 console.log('  • depthCapModEnabled = true');
 if (AUTO) console.log('  • --auto mode: tests 5-8 (require setting changes) will be skipped\n');
+else if (SINGLE_TEST) console.log(`  • single-test mode (${process.argv.slice(2).join(' ')}): only the flagged settings test will run\n`);
 else console.log();
 
 // 1. Happy path — depth == cap fires
-await test('1. Happy path: depth 5 → locked + bot reply', async () => {
+if (SINGLE_TEST) { console.log('  1. Happy path: depth 5 → locked + bot reply ... SKIP (single-test mode)'); }
+else await test('1. Happy path: depth 5 → locked + bot reply', async () => {
   const post = await submitPost('happy-path');
   const chain = await buildChain(post, 5); // c1..c5
   const c5 = chain[5];
@@ -160,7 +167,8 @@ await test('1. Happy path: depth 5 → locked + bot reply', async () => {
 });
 
 // 2. No-op — depth < cap
-await test('2. No-op: depth 4 → not locked', async () => {
+if (SINGLE_TEST) { console.log('  2. No-op: depth 4 → not locked ... SKIP (single-test mode)'); }
+else await test('2. No-op: depth 4 → not locked', async () => {
   const post = await submitPost('noop-depth-4');
   const chain = await buildChain(post, 4); // c1..c4
   const c4 = chain[4];
@@ -174,7 +182,8 @@ await test('2. No-op: depth 4 → not locked', async () => {
 });
 
 // 3. No-op — depth > cap (submit c6 before bot can act on c5)
-await test('3. No-op: depth 6 → c6 not locked', async () => {
+if (SINGLE_TEST) { console.log('  3. No-op: depth 6 → c6 not locked ... SKIP (single-test mode)'); }
+else await test('3. No-op: depth 6 → c6 not locked', async () => {
   const post = await submitPost('noop-depth-6');
   const chain = await buildChain(post, 6); // quickly builds c1..c6
   const c6 = chain[6];
@@ -185,7 +194,8 @@ await test('3. No-op: depth 6 → c6 not locked', async () => {
 });
 
 // 4. Boundary: depth 4 no-op then depth 5 fires
-await test('4. Boundary: c4 no-op / c5 fires in same chain', async () => {
+if (SINGLE_TEST) { console.log('  4. Boundary: c4 no-op / c5 fires in same chain ... SKIP (single-test mode)'); }
+else await test('4. Boundary: c4 no-op / c5 fires in same chain', async () => {
   const post = await submitPost('boundary');
   const chain4 = await buildChain(post, 4);
   const c4 = chain4[4];
@@ -199,42 +209,40 @@ await test('4. Boundary: c4 no-op / c5 fires in same chain', async () => {
   assert(c5data?.locked === true, `c5 should be locked`);
 });
 
-// 5. Settings: disabled
+// 5. Settings: disabled  (--test5: assumes depthCapModEnabled already set to false)
 if (AUTO) { console.log('  5. Module disabled → no enforcement ... SKIP (--auto)'); }
+else if (SINGLE_TEST && !TEST5) { /* skip — different test flag active */ }
 else await test('5. Module disabled → no enforcement', async () => {
-  console.log('\n    ⚠ Manually set depthCapModEnabled = false, then press Enter');
-  await waitForEnter();
+  if (!TEST5) { console.log('\n    ⚠ Set depthCapModEnabled = false, then press Enter'); await waitForEnter(); }
   const post = await submitPost('disabled');
   const chain = await buildChain(post, 5);
   const c5 = chain[5];
   await sleep(BOT_WAIT_MS);
   const c5data = await getComment(c5);
   assert(c5data?.locked !== true, `c5 should NOT be locked when module is disabled`);
-  console.log('    ⚠ Reset depthCapModEnabled = true, then press Enter');
-  await waitForEnter();
+  if (!TEST5) { console.log('    ⚠ Reset depthCapModEnabled = true, then press Enter'); await waitForEnter(); }
 });
 
-// 6. Settings: custom cap
+// 6. Settings: custom cap  (--test6: assumes depthCap already set to 3)
 if (AUTO) { console.log('  6. Custom cap=3 → c3 locked ... SKIP (--auto)'); }
+else if (SINGLE_TEST && !TEST6) { /* skip — different test flag active */ }
 else await test('6. Custom cap=3 → c3 locked', async () => {
-  console.log('\n    ⚠ Set depthCap = 3, then press Enter');
-  await waitForEnter();
+  if (!TEST6) { console.log('\n    ⚠ Set depthCap = 3, then press Enter'); await waitForEnter(); }
   const post = await submitPost('cap-3');
   const chain = await buildChain(post, 3);
   const c3 = chain[3];
   await sleep(BOT_WAIT_MS);
   const c3data = await getComment(c3);
   assert(c3data?.locked === true, `c3 should be locked when cap=3`);
-  console.log('    ⚠ Reset depthCap = 5, then press Enter');
-  await waitForEnter();
+  if (!TEST6) { console.log('    ⚠ Reset depthCap = 5, then press Enter'); await waitForEnter(); }
 });
 
-// 7. Settings: custom response
+// 7. Settings: custom response  (--test7: assumes depthCapResponse already set to 'Test cap message.')
 if (AUTO) { console.log('  7. Custom response message appears in bot reply ... SKIP (--auto)'); }
+else if (SINGLE_TEST && !TEST7) { /* skip — different test flag active */ }
 else await test('7. Custom response message appears in bot reply', async () => {
   const CUSTOM_MSG = 'Test cap message.';
-  console.log(`\n    ⚠ Set depthCapResponse = "${CUSTOM_MSG}", then press Enter`);
-  await waitForEnter();
+  if (!TEST7) { console.log(`\n    ⚠ Set depthCapResponse = "${CUSTOM_MSG}", then press Enter`); await waitForEnter(); }
   const post = await submitPost('custom-response');
   const chain = await buildChain(post, 5);
   const c5 = chain[5];
@@ -243,28 +251,27 @@ else await test('7. Custom response message appears in bot reply', async () => {
   const botReply = replies.find(r => r.author === 'llmphysics-bot');
   assert(botReply, 'no bot reply found');
   assert(botReply.body.startsWith(CUSTOM_MSG), `reply body: "${botReply.body.slice(0, 60)}"`);
-  console.log('    ⚠ Clear depthCapResponse, then press Enter');
-  await waitForEnter();
+  if (!TEST7) { console.log('    ⚠ Clear depthCapResponse, then press Enter'); await waitForEnter(); }
 });
 
-// 8. Settings: moderator exemption
+// 8. Settings: moderator exemption  (--test8: assumes depthCapIgnoreModerators already set to true)
 if (AUTO) { console.log('  8. Moderator exempt when depthCapIgnoreModerators=true ... SKIP (--auto)'); }
+else if (SINGLE_TEST && !TEST8) { /* skip — different test flag active */ }
 else await test('8. Moderator exempt when depthCapIgnoreModerators=true', async () => {
-  console.log('\n    ⚠ Set depthCapIgnoreModerators = true, then press Enter');
-  await waitForEnter();
+  if (!TEST8) { console.log('\n    ⚠ Set depthCapIgnoreModerators = true, then press Enter'); await waitForEnter(); }
   const post = await submitPost('mod-exempt');
   const chain = await buildChain(post, 5);
   const c5 = chain[5];
   await sleep(BOT_WAIT_MS);
   const c5data = await getComment(c5);
   assert(c5data?.locked !== true, `c5 should NOT be locked (AllHailSeizure is a mod, exempt)`);
-  console.log('    ⚠ Reset depthCapIgnoreModerators = false, then press Enter');
-  await waitForEnter();
+  if (!TEST8) { console.log('    ⚠ Reset depthCapIgnoreModerators = false, then press Enter'); await waitForEnter(); }
 });
 
 
 // 9. Regression: direct reply to post (depth 1) with cap > 1
-await test('9. Regression: depth 1 direct reply → no enforcement', async () => {
+if (SINGLE_TEST) { console.log('  9. Regression: depth 1 direct reply → no enforcement ... SKIP (single-test mode)'); }
+else await test('9. Regression: depth 1 direct reply → no enforcement', async () => {
   const post = await submitPost('depth-1-regression');
   const c1 = await submitComment(post, 'direct reply to post');
   await sleep(BOT_WAIT_MS);

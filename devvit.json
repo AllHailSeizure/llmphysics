@@ -152,6 +152,12 @@
         "label": "Supabase service role key",
         "helpText": "Service role key for the review_jobs table. Keep secret.",
         "isSecret": true
+      },
+      "supabaseServiceKey": {
+        "type": "string",
+        "label": "Supabase service key",
+        "helpText": "Service key for writing bot logs to the bot_logs table. Keep secret.",
+        "isSecret": true
       }
     },
     "subreddit": {

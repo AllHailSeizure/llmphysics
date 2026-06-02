@@ -8,6 +8,57 @@ function fmt(level: LogLevel, module: string, message: string, extra?: unknown):
   return `[${ts}][${level.toUpperCase()}][${module}] ${message}${suffix}`;
 }
 
+function extractLogFields(extra?: unknown): {
+  action?: string;
+  reason?: string;
+  user_id?: string;
+  post_id?: string;
+  comment_id?: string;
+  extra?: Record<string, unknown>;
+} {
+  if (!extra || typeof extra !== 'object' || Array.isArray(extra)) return {};
+  const { action, reason, userId, postId, commentId, ...rest } = extra as Record<string, unknown>;
+  const result: ReturnType<typeof extractLogFields> = {};
+  if (typeof action === 'string') result.action = action;
+  if (typeof reason === 'string') result.reason = reason;
+  if (typeof userId === 'string') result.user_id = userId;
+  if (typeof postId === 'string') result.post_id = postId;
+  if (typeof commentId === 'string') result.comment_id = commentId;
+  if (Object.keys(rest).length > 0) result.extra = rest;
+  return result;
+}
+
+async function persistToSupabase(level: LogLevel, module: string, message: string, extra?: unknown): Promise<void> {
+  try {
+    const { settings } = await import('@devvit/web/server');
+    const supabaseUrl = (await settings.get<string>('supabaseUrl')) || '';
+    const supabaseKey = (await settings.get<string>('supabaseServiceKey')) || '';
+    if (!supabaseUrl || !supabaseKey) return;
+
+    const fields = extractLogFields(extra);
+    const body: Record<string, unknown> = { level, module, message };
+    if (fields.action !== undefined) body.action = fields.action;
+    if (fields.reason !== undefined) body.reason = fields.reason;
+    if (fields.user_id !== undefined) body.user_id = fields.user_id;
+    if (fields.post_id !== undefined) body.post_id = fields.post_id;
+    if (fields.comment_id !== undefined) body.comment_id = fields.comment_id;
+    if (fields.extra !== undefined) body.extra = fields.extra;
+
+    await fetch(`${supabaseUrl}/rest/v1/bot_logs`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${supabaseKey}`,
+        'apikey': supabaseKey,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal',
+      },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    // never let a Supabase write failure break the bot
+  }
+}
+
 async function persist(level: LogLevel, module: string, message: string, extra?: unknown): Promise<void> {
   try {
     const { redis } = await import('@devvit/web/server');
@@ -19,6 +70,7 @@ async function persist(level: LogLevel, module: string, message: string, extra?:
   } catch {
     // never let logging break the bot
   }
+  void persistToSupabase(level, module, message, extra);
 }
 
 export async function logZSet(key: string, entry: object, maxEntries = MAX_LOG_ENTRIES): Promise<void> {

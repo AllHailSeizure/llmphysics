@@ -4,7 +4,25 @@ import { logger, logZSet } from '../helpers/log-helper';
 import { formatSignature } from '../helpers/settings-helper';
 import type { CommentId, SettingDef } from '../types';
 
-const log = logger('self-response-moderator');
+export const MODULE = {
+  name: 'self-response-moderator',
+  type: 'trigger',
+  description: 'Removes and locks top-level comments where the commenter is the post author.',
+  triggers: ['onCommentCreate'],
+  redisKeys: [
+    'bot:srmod:handled:{commentId}',
+    'bot:srmod:log',
+  ],
+  settings: [
+    'selfResponseModEnabled',
+    'selfResponseIgnoreModerators',
+    'selfResponseIgnoreContributors',
+    'selfResponseResponse',
+    'botSignature',
+  ],
+} as const;
+
+const log = logger(MODULE.name);
 const SRM_LOG_KEY = 'bot:srmod:log';
 const SRM_LOG_MAX = 200;
 
@@ -41,13 +59,10 @@ export async function run(event: OnCommentCreateRequest): Promise<void> {
     const authorName = event.author.name;
     try {
       if (ignoreModerators) {
-        const user = await reddit.getUserByUsername(authorName);
-        if (user) {
-          const modPerms = await user.getModPermissionsForSubreddit(subredditName);
-          if (modPerms.length > 0) {
-            log.info('Comment ignored (moderator)', { commentId: cv2.id, username: authorName });
-            return;
-          }
+        const mods = await reddit.getModerators({ subredditName, username: authorName }).all();
+        if (mods.length > 0) {
+          log.info('Comment ignored (moderator)', { commentId: cv2.id, username: authorName });
+          return;
         }
       }
       if (ignoreContributors) {

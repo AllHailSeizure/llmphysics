@@ -241,6 +241,7 @@ export function register(app: Hono): void {
               type: 'boolean',
               name: 'distinguish',
               label: 'Distinguish comment',
+              helpText: 'Only applies when posting as Bot.',
               defaultValue: true,
             },
             {
@@ -279,7 +280,7 @@ export function register(app: Hono): void {
         runAs,
       });
 
-      if (distinguish) {
+      if (distinguish && runAs === 'APP') {
         try {
           await reply.distinguish(true);
         } catch {
@@ -302,7 +303,7 @@ export function register(app: Hono): void {
       }
 
       const actions: string[] = ['Response posted'];
-      if (lock) actions.push('comment locked');
+      if (lock) actions.push(targetId.startsWith('t1_') ? 'comment locked' : 'post locked');
 
       await logZSet(LOG_KEY, { action: 'apply', targetId, lock, distinguish, commenter: runAs, by: mod }, LOG_MAX);
 
@@ -313,8 +314,13 @@ export function register(app: Hono): void {
         },
       });
     } catch (err) {
+      const cancelled = (err as Error)?.message?.includes('CANCELLED');
       log.error('Failed to apply saved response', err);
-      return c.json<UiResponse>({ showToast: 'Failed to send response.' });
+      return c.json<UiResponse>({
+        showToast: cancelled
+          ? { text: 'Response posted (verify it appeared).', appearance: 'neutral' }
+          : { text: 'Failed to send response.', appearance: 'critical' },
+      });
     }
   });
 
@@ -517,7 +523,7 @@ export function register(app: Hono): void {
 
     log.info('Saved response updated', { id: session.responseId, title });
     return c.json<UiResponse>({
-      showToast: { text: `Response "${title}" updated.`, appearance: 'success' },
+      showToast: { text: `Saved response "${title}" updated.`, appearance: 'success' },
     });
   });
 
@@ -535,7 +541,7 @@ export function register(app: Hono): void {
     await saveResponses(responses);
     log.info('Saved response deleted', { id: responseId, title: deleted.title });
     return c.json<UiResponse>({
-      showToast: { text: `Response "${deleted.title}" deleted.`, appearance: 'success' },
+      showToast: { text: `Saved response "${deleted.title}" deleted.`, appearance: 'success' },
     });
   });
 }
