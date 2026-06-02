@@ -11,15 +11,15 @@
     "format": "prettier --write src"
   },
   "dependencies": {
-    "@devvit/web": "^0.12.0",
+    "@devvit/web": "^0.13.0",
     "@hono/node-server": "^2.0.0",
     "hono": "^4.0.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6"
   },
   "devDependencies": {
-    "@devvit/shared-types": "^0.12.20",
-    "@devvit/start": "^0.12.23",
+    "@devvit/shared-types": "^0.13.0",
+    "@devvit/start": "^0.13.0",
     "@types/node": "^20.0.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",

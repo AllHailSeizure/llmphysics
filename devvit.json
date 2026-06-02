@@ -1,6 +1,9 @@
 {
   "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
   "name": "llmphysics-bot",
+  "marketingAssets": {
+    "icon": "llmphysics-bot_icon.png"
+  },
   "server": {
     "entry": "index.cjs"
   },
@@ -47,10 +50,6 @@
   },
   "scheduler": {
     "tasks": {
-      "bingo-batch-check": {
-        "endpoint": "/internal/scheduler/bingo-batch-check",
-        "cron": "0 * * * *"
-      },
       "pdf-review-poll": {
         "endpoint": "/internal/scheduler/pdf-review-poll",
         "cron": "*/5 * * * *"
@@ -102,20 +101,6 @@
         "forUserType": "moderator",
         "location": "subreddit",
         "endpoint": "/internal/menu/bot-settings-adversarial"
-      },
-      {
-        "label": "Create Bingo Post",
-        "description": "Manually create this week's bingo post.",
-        "forUserType": "moderator",
-        "location": "subreddit",
-        "endpoint": "/internal/menu/create-bingo-post"
-      },
-      {
-        "label": "Bingo Settings",
-        "description": "Configure and manage the bingo game.",
-        "forUserType": "moderator",
-        "location": "subreddit",
-        "endpoint": "/internal/menu/bingo-settings"
       }
     ]
   },
@@ -130,7 +115,6 @@
     "saved-response-delete":      "/internal/forms/saved-response/delete",
     "quota-viewer-search":        "/internal/forms/quota-viewer-search",
     "quota-viewer-result":        "/internal/forms/quota-viewer-result",
-    "bingo-settings":             "/internal/forms/bingo-settings",
     "bot-settings-adversarial":   "/internal/forms/bot-settings-adversarial"
   },
   "settings": {
@@ -171,17 +155,19 @@
         "type": "number",
         "label": "Depth Cap — Maximum comment depth",
         "helpText": "Lock comment chains that reach this depth. Set to 0 to disable. Default: 10.",
-        "defaultValue": 10
+        "defaultValue": 15
       },
       "depthCapResponse": {
         "type": "paragraph",
         "label": "Depth Cap Moderation — Depth cap triggered comment",
-        "helpText": "Commented when a comment reaches theh maximum depth cap."
+        "helpText": "Commented when a comment reaches theh maximum depth cap.",
+        "defaultValue": "This comment has been locked.\n\nDiscussions shouldn't exceed a maximum depth of 15 comments."
       },
       "floodAssistantResponse": {
         "type": "paragraph",
         "label": "Flood Assistant — Flood assistant triggered comment",
-        "helpText": "Commented when the flood assistant is triggered."
+        "helpText": "Commented when the flood assistant is triggered.",
+        "defaultValue": "This post has been removed.\n\nUsers are allowed one post per 24 hours."
       },
       "floodAssistantMaxPosts": {
         "type": "number",
@@ -228,7 +214,8 @@
       "selfResponseResponse": {
         "type": "paragraph",
         "label": "Self-Response Moderator — Self-response triggered comment",
-        "helpText": "Commented when a user responds to their own post."
+        "helpText": "Commented when a user responds to their own post.",
+        "defaultValue": "This comment has been removed.\n\nIf you have more information to provide, edit it into your post instead of commenting on it."
       },
       "selfResponseIgnoreModerators": {
         "type": "boolean",
@@ -281,29 +268,32 @@
       "lengthModFlairId": {
         "type": "string",
         "label": "Length Moderator — Restricted flair template ID",
-        "helpText": "Posts with this flair are subject to the maximum length limit. Leave blank to disable."
+        "helpText": "Posts with this flair are subject to the maximum length limit. Leave blank to disable.",
+        "defaultValue": "8c303c30-6c0f-11f0-91f4-0e02698c7ddc"
       },
       "lengthModMaxUnhostedLength": {
         "type": "number",
         "label": "Length Moderator — Max unhosted length (characters)",
         "helpText": "Maximum character count for posts with the restricted flair. 0 = disabled.",
-        "defaultValue": 0
+        "defaultValue": 5000
       },
       "lengthModMinHostedLength": {
         "type": "number",
         "label": "Length Moderator — Min hosted length (characters)",
         "helpText": "Minimum character count for link posts. 0 = disabled.",
-        "defaultValue": 0
+        "defaultValue": 350
       },
       "lengthModMaxUnhostedComment": {
         "type": "paragraph",
         "label": "Length Moderator — Over-length removal message",
-        "helpText": "Posted when a post exceeds the maximum length for its flair."
+        "helpText": "Posted when a post exceeds the maximum length for its flair.",
+        "defaultValue": "This post has been removed.\n\n'Personal Theory' posts are limited to 5000 characters."
       },
       "lengthModMinHostedComment": {
         "type": "paragraph",
         "label": "Length Moderator — Under-length removal message",
-        "helpText": "Posted when a link post is below the minimum length."
+        "helpText": "Posted when a link post is below the minimum length.",
+        "defaultValue": "This post has been removed.\n\nPosts with a link should include a 350 character summary of the linked content."
       },
       "mopToolEnabled": {
         "type": "boolean",
@@ -327,7 +317,7 @@
         "type": "string",
         "label": "Define Command — Subject category",
         "helpText": "Category used for term disambiguation in the !define command.",
-        "defaultValue": "physics, mathematics, and AI"
+        "defaultValue": "physics, mathematics, AI"
       },
       "defineCommandSearchGrounding": {
         "type": "boolean",
@@ -339,12 +329,13 @@
         "type": "boolean",
         "label": "Adversarial Reviewer — Enable",
         "helpText": "Enable or disable the Adversarial Reviewer action.",
-        "defaultValue": false
+        "defaultValue": true
       },
       "adversarialReviewerFlairId": {
         "type": "string",
         "label": "Adversarial Reviewer — Required flair template ID",
-        "helpText": "If set, only posts with this flair can request a review. Leave blank to allow any post."
+        "helpText": "If set, only posts with this flair can request a review. Leave blank to allow any post.",
+        "defaultValue": "8c303c30-6c0f-11f0-91f4-0e02698c7ddc"
       }
     }
   },
