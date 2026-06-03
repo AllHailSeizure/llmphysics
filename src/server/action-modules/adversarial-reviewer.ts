@@ -92,8 +92,8 @@ async function callGemini(title: string, body: string, apiKey: string): Promise<
 
   let model = 'Gemini 3.5 Flash';
   let res = await fetchWithLogging(GEMINI_PRIMARY_API, opts(buildPayload(model)));
-  if (res.status === 429) {
-    log.info('Gemini 3.5 rate limited, falling back to 3.1');
+  if (res.status === 429 || res.status === 503) {
+    log.info('Gemini 3.5 unavailable, falling back to 3.1', { status: res.status });
     model = 'Gemini 3.1 Flash Lite';
     res = await fetchWithLogging(GEMINI_FALLBACK_API, opts(buildPayload(model)));
   }
@@ -193,7 +193,7 @@ export function register(app: Hono): void {
       if (currentUser) {
         let isModerator = false;
         try {
-          const mods = await reddit.getModerators({ subredditName, username: currentUser.username });
+          const mods = await reddit.getModerators({ subredditName, username: currentUser.username }).all();
           isModerator = mods.length > 0;
         } catch (err) {
           log.warn('mod_check_failed', { error: (err as Error).message });
