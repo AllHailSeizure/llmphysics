@@ -4,6 +4,7 @@
  * Usage:
  *   node scripts/verify-adversarial-reviewer.mjs --auto
  *   node scripts/verify-adversarial-reviewer.mjs --check-enabled <postFullname>
+ *   node scripts/verify-adversarial-reviewer.mjs --cleanup <postFullname>
  */
 
 import { readFileSync } from 'fs';
@@ -78,6 +79,7 @@ if (args.includes('--auto')) {
   console.log('3. Wait for a toast. Tell me what it said.');
   console.log('');
   console.log(`Then run:  node scripts/verify-adversarial-reviewer.mjs --check-enabled ${postId}`);
+  console.log(`Cleanup:   node scripts/verify-adversarial-reviewer.mjs --cleanup ${postId}`);
 }
 
 // ── --check-enabled ───────────────────────────────────────────────────────────
@@ -111,11 +113,23 @@ if (args.includes('--check-enabled')) {
     console.log('3. Click "..." → "Request Adversarial Review" on any post.');
     console.log('4. Expected toast: "Adversarial reviewer is disabled."');
     console.log('5. Confirm the toast text, then restore the toggle if desired.');
+    console.log('');
+    console.log(`Cleanup:  node scripts/verify-adversarial-reviewer.mjs --cleanup ${postId}`);
   }
 }
 
-if (!args.includes('--auto') && !args.includes('--check-enabled')) {
+// ── --cleanup ─────────────────────────────────────────────────────────────────
+if (args.includes('--cleanup')) {
+  const postId = args[args.indexOf('--cleanup') + 1];
+  if (!postId) { console.error('--cleanup requires a post fullname'); process.exit(1); }
+  console.log(`Deleting ${postId}...`);
+  await reddit('POST', '/api/del', { id: postId });
+  console.log('Done.');
+}
+
+if (!args.includes('--auto') && !args.includes('--check-enabled') && !args.includes('--cleanup')) {
   console.log('Usage:');
   console.log('  node scripts/verify-adversarial-reviewer.mjs --auto');
   console.log('  node scripts/verify-adversarial-reviewer.mjs --check-enabled <postFullname>');
+  console.log('  node scripts/verify-adversarial-reviewer.mjs --cleanup <postFullname>');
 }

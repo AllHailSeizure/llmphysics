@@ -1,6 +1,6 @@
 # Verification Status
 
-_Last updated: 2026-06-01_
+_Last updated: 2026-06-02_
 _Devvit CLI: 0.12.24_
 
 ---
@@ -122,31 +122,66 @@ _Devvit CLI: 0.12.24_
 
 ## quota-viewer
 
-**Last verified:** _(pending)_
+**Last verified:** 2026-06-01 — VERIFIED ✓
 **Last promoted:** _(not yet promoted)_
-**Module hash:** _(pending)_
-**Test script hash:** _(pending — script not yet created)_
-**Devvit CLI at verify:** _(pending)_
+**Module hash:** `b81150be865a4d5fe0cf52c06545f583e68390eb`
+**Test script hash:** `70b2940f33e95df4e308825dd44d446fadd2f8b9`
+**Devvit CLI at verify:** 0.12.24
+
+| Test | Description | Status |
+|------|-------------|--------|
+| Happy path | Seed post → search AllHailSeizure → shows valid post count and next post time | PASS |
+| Disabled | floodModEnabled=false → "Flood Moderator is disabled. Enable it in bot settings." toast | PASS |
+| User not found | Search unknown username → "User '...' not found" toast | PASS |
+| Empty username | Submit blank username → "Username required" toast | PASS |
+| Search-again | Submit result form → returns to Flood Quota Checker search form | PASS |
+
+**Code audit:** No blockers. All settings via `settings.get()`. Dead `setSession()` call before search form renders — session is never read back on the search→result flow (improvement only).
 
 ---
 
 ## mop-tool
 
-**Last verified:** _(pending)_
+**Last verified:** 2026-06-01 — VERIFIED ✓
 **Last promoted:** _(not yet promoted)_
-**Module hash:** _(pending)_
-**Test script hash:** _(pending — script not yet created)_
-**Devvit CLI at verify:** _(pending)_
+**Module hash:** `83d0f8382a64a282c833985af4188175fb071ecd`
+**Test script hash:** `67625d10514ca67b150ec10583fdec75c806f8ff`
+**Devvit CLI at verify:** 0.12.24
+
+| Test | Description | Status |
+|------|-------------|--------|
+| Happy path: remove | Seed 3-comment chain → Chain Mop (remove=true) → all 3 comments removed | PASS |
+| Happy path: lock | Seed 3-comment chain → Chain Mop (lock=true) → all 3 comments locked | PASS |
+| No-op: nothing selected | remove=false, lock=false → "No actions selected." toast | PASS |
+| Settings: disabled | mopToolEnabled=false → "Chain Mop is disabled. Enable it in bot settings." toast | PASS |
+| collectSubtree order | Post-order traversal: deepest children processed before parent — correct for removal | PASS |
+| Log format | snake_case event names, JSON data | PASS |
+
+**Code audit:** No blockers. MODULE descriptor present. `collectSubtree` post-order verified (children first, root last — correct for removal so parent is removed after all descendants).
 
 ---
 
 ## response-tool
 
-**Last verified:** _(pending)_
+**Last verified:** 2026-06-01 — VERIFIED ✓
 **Last promoted:** _(not yet promoted)_
-**Module hash:** _(pending)_
-**Test script hash:** _(pending — script not yet created)_
-**Devvit CLI at verify:** _(pending)_
+**Module hash:** `31c3a498e3fa29b2daa445237a29cd04c60d342e`
+**Test script hash:** `fa8189deae97c47c26bbd154baadfc7e1c3b157c`
+**Devvit CLI at verify:** 0.12.24
+
+| Test | Description | Status |
+|------|-------------|--------|
+| Happy path: apply as bot | Seed post → apply saved response as Bot → distinguished bot comment posted | PASS |
+| Apply as moderator | Apply as Moderator (you) → comment posted as mod, no distinguish | PASS |
+| Apply + lock (post) | Apply with lock=true on post → bot comment posted + "post locked" in toast | PASS |
+| Apply + lock (comment) | Apply with lock=true on comment → bot comment posted + "comment locked" in toast | PASS |
+| gRPC CANCELLED | CANCELLED error on submit → neutral toast "Response posted (verify it appeared)." | PASS |
+| CRUD: add | Add saved response → title appears in apply list | PASS |
+| CRUD: edit | Edit saved response → updated title/body reflected | PASS |
+| CRUD: delete | Delete saved response → removed from list | PASS |
+| Settings: disabled | responseToolEnabled=false → "Saved Responses is disabled." toast | PASS |
+
+**Bugs fixed (BLOCKERS):** (1) Lock toast didn't differentiate post vs comment — fixed to say "post locked" vs "comment locked". (2) Success toast was prefixed with "Saved response:" — prefix removed. (3) gRPC CANCELLED returned `critical` appearance — now returns `neutral`. (4) `reply.distinguish()` called regardless of `runAs` — guarded to `runAs === 'APP'` only.
 
 ---
 

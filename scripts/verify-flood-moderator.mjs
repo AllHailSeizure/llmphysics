@@ -33,6 +33,8 @@ function loadToken() {
 const TOKEN = loadToken();
 const UA = 'llmphysics-bot-verify/1.0 (by AllHailSeizure)';
 
+const created = [];
+
 async function reddit(method, path, body) {
   const url = `https://oauth.reddit.com${path}`;
   const opts = {
@@ -64,7 +66,18 @@ async function submitPost(title) {
   });
   const postId = data.json?.data?.id;
   if (!postId) throw new Error(`submitPost failed: ${JSON.stringify(data)}`);
-  return `t3_${postId}`;
+  const fullname = `t3_${postId}`;
+  created.push(fullname);
+  return fullname;
+}
+
+async function deleteCreated() {
+  if (created.length === 0) return;
+  process.stdout.write(`\nCleaning up ${created.length} created post(s)...`);
+  for (const id of [...created].reverse()) {
+    try { await reddit('POST', '/api/del', { id }); } catch (_) {}
+  }
+  console.log(' done.');
 }
 
 async function getPost(fullname) {
@@ -286,3 +299,5 @@ if (TEST5) {
 if (TEST6) {
   console.log('\n  ⚠  Reset: set floodAssistantIgnoreModerators = false in the portal before running other tests.');
 }
+
+await deleteCreated();

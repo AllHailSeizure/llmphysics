@@ -5,4 +5,7 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   base: './',
   plugins: [devvit(), react()],
+  build: {
+    assetsInlineLimit: 512 * 1024,
+  },
 });

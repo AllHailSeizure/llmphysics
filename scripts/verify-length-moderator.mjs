@@ -33,6 +33,8 @@ function loadToken() {
 const TOKEN = loadToken();
 const UA = 'llmphysics-bot-verify/1.0 (by AllHailSeizure)';
 
+const created = [];
+
 async function reddit(method, path, body) {
   const url = `https://oauth.reddit.com${path}`;
   const opts = { method, headers: { Authorization: `Bearer ${TOKEN}`, 'User-Agent': UA } };
@@ -62,7 +64,9 @@ async function submitPost(title, bodyText, flairId = null) {
   const d = await reddit('POST', '/api/submit', body);
   const id = d.json?.data?.id;
   if (!id) throw new Error(`submitPost failed: ${JSON.stringify(d)}`);
-  return `t3_${id}`;
+  const fullname = `t3_${id}`;
+  created.push(fullname);
+  return fullname;
 }
 
 async function submitLinkPost(title, url, bodyText = '') {
@@ -74,7 +78,18 @@ async function submitLinkPost(title, url, bodyText = '') {
   });
   const id = d.json?.data?.id;
   if (!id) throw new Error(`submitLinkPost failed: ${JSON.stringify(d)}`);
-  return `t3_${id}`;
+  const fullname = `t3_${id}`;
+  created.push(fullname);
+  return fullname;
+}
+
+async function deleteCreated() {
+  if (created.length === 0) return;
+  process.stdout.write(`\nCleaning up ${created.length} created post(s)...`);
+  for (const id of [...created].reverse()) {
+    try { await reddit('POST', '/api/del', { id }); } catch (_) {}
+  }
+  console.log(' done.');
 }
 
 async function selectFlair(postFullname, flairId) {
@@ -231,3 +246,5 @@ if (failed === 0) {
 } else {
   console.log('\nSome tests FAILED ✗ — diagnose before promoting.');
 }
+
+await deleteCreated();

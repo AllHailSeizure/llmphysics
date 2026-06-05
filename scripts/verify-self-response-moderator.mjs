@@ -29,6 +29,8 @@ function loadToken() {
 const TOKEN = loadToken();
 const UA = 'llmphysics-bot-verify/1.0 (by AllHailSeizure)';
 
+const created = [];
+
 async function reddit(method, path, body) {
   const url = `https://oauth.reddit.com${path}`;
   const opts = {
@@ -60,7 +62,9 @@ async function submitPost(title) {
   });
   const postId = data.json?.data?.id;
   if (!postId) throw new Error(`submitPost failed: ${JSON.stringify(data)}`);
-  return `t3_${postId}`;
+  const fullname = `t3_${postId}`;
+  created.push(fullname);
+  return fullname;
 }
 
 async function submitComment(parentFullname, text = 'self-response verification comment') {
@@ -72,7 +76,18 @@ async function submitComment(parentFullname, text = 'self-response verification 
   });
   const id = data.json?.data?.things?.[0]?.data?.id;
   if (!id) throw new Error(`submitComment failed: ${JSON.stringify(data)}`);
-  return `t1_${id}`;
+  const fullname = `t1_${id}`;
+  created.push(fullname);
+  return fullname;
+}
+
+async function deleteCreated() {
+  if (created.length === 0) return;
+  process.stdout.write(`\nCleaning up ${created.length} created post(s)/comment(s)...`);
+  for (const id of [...created].reverse()) {
+    try { await reddit('POST', '/api/del', { id }); } catch (_) {}
+  }
+  console.log(' done.');
 }
 
 async function getComment(fullname) {
@@ -220,3 +235,5 @@ if (failed === 0 && passed > 0) {
     console.log('  selfResponseResponse = (non-empty string)');
   }
 }
+
+await deleteCreated();

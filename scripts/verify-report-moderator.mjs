@@ -26,6 +26,8 @@ function loadToken() {
 const TOKEN = loadToken();
 const UA = 'llmphysics-bot-verify/1.0 (by AllHailSeizure)';
 
+const created = [];
+
 async function reddit(method, path, body) {
   const url = `https://oauth.reddit.com${path}`;
   const opts = {
@@ -51,7 +53,9 @@ async function submitPost(title) {
   });
   const id = d.json?.data?.id;
   if (!id) throw new Error(`submitPost failed: ${JSON.stringify(d)}`);
-  return `t3_${id}`;
+  const fullname = `t3_${id}`;
+  created.push(fullname);
+  return fullname;
 }
 
 async function submitComment(parentFullname, text = 'test comment') {
@@ -61,7 +65,18 @@ async function submitComment(parentFullname, text = 'test comment') {
   });
   const id = d.json?.data?.things?.[0]?.data?.id;
   if (!id) throw new Error(`submitComment failed: ${JSON.stringify(d)}`);
-  return `t1_${id}`;
+  const fullname = `t1_${id}`;
+  created.push(fullname);
+  return fullname;
+}
+
+async function deleteCreated() {
+  if (created.length === 0) return;
+  process.stdout.write(`\nCleaning up ${created.length} created post(s)/comment(s)...`);
+  for (const id of [...created].reverse()) {
+    try { await reddit('POST', '/api/del', { id }); } catch (_) {}
+  }
+  console.log(' done.');
 }
 
 async function buildChain(postFullname, depth) {
@@ -178,3 +193,5 @@ if (failed === 0) {
 } else {
   console.log('\nSome tests FAILED ✗ — diagnose before promoting.');
 }
+
+await deleteCreated();
