@@ -36,12 +36,11 @@ const sig = formatSignature(raw);       // superscripts each word, prepends '---
 
 ## redis-helper.ts
 
-Post tracking and flood quota evaluation. Owned jointly by flood-moderator and bingo.
+Post tracking and flood quota evaluation. Owned by flood-moderator.
 
 ```typescript
 trackPost(userId, postId, createdAt, isModerator, isApprovedUser)
 markPostDeleted(postId) / markPostModRemoved(postId) / markPostAutoRemoved(postId)
-tagPostWithGame(postId, gameId) / getPostGameId(postId)
 evaluateFloodStatus(userId, username, maxPosts, windowHours, ignoreSettings, currentPostId?)
 ```
 

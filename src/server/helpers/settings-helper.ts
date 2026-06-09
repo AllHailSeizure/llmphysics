@@ -1,10 +1,6 @@
 import { redis } from '@devvit/web/server';
 
-const DEFAULTS: Record<string, string | number | boolean> = {
-  bingoFirstWinnerMessage: '🎉 **FIRST BINGO!** Congrats to u/{userId} for being the first to win!',
-  bingoBingoMessage: '✅ Bingo! u/{userId} got five in a row!',
-  bingoFullCardMessage: '⭐ FULL CARD! u/{userId} marked all 25 tiles! Incredible!',
-};
+const DEFAULTS: Record<string, string | number | boolean> = {};
 
 export async function readSetting<T extends string | number | boolean>(
   key: string,

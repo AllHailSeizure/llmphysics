@@ -4,20 +4,6 @@
   "server": {
     "entry": "index.cjs"
   },
-  "post": {
-    "dir": "dist/client",
-    "entrypoints": {
-      "default": {
-        "entry": "splash.html",
-        "inline": true,
-        "height": "regular"
-      },
-      "game": {
-        "entry": "game.html",
-        "height": "tall"
-      }
-    }
-  },
   "dev":{
     "subreddit": "llmphysics_dev"
   },
@@ -28,7 +14,7 @@
     "redis": true,
     "reddit": {
       "enable": true,
-      "asUser": ["SUBMIT_COMMENT", "SUBMIT_POST"],
+      "asUser": ["SUBMIT_COMMENT"],
       "scope": "moderator"
     }
     
@@ -47,10 +33,6 @@
   },
   "scheduler": {
     "tasks": {
-      "bingo-batch-check": {
-        "endpoint": "/internal/scheduler/bingo-batch-check",
-        "cron": "0 * * * *"
-      },
       "pdf-review-poll": {
         "endpoint": "/internal/scheduler/pdf-review-poll",
         "cron": "*/5 * * * *"
@@ -102,20 +84,6 @@
         "forUserType": "moderator",
         "location": "subreddit",
         "endpoint": "/internal/menu/bot-settings-adversarial"
-      },
-      {
-        "label": "Create Bingo Post",
-        "description": "Manually create this week's bingo post.",
-        "forUserType": "moderator",
-        "location": "subreddit",
-        "endpoint": "/internal/menu/create-bingo-post"
-      },
-      {
-        "label": "Bingo Settings",
-        "description": "Configure and manage the bingo game.",
-        "forUserType": "moderator",
-        "location": "subreddit",
-        "endpoint": "/internal/menu/bingo-settings"
       }
     ]
   },
@@ -130,8 +98,8 @@
     "saved-response-delete":      "/internal/forms/saved-response/delete",
     "quota-viewer-search":        "/internal/forms/quota-viewer-search",
     "quota-viewer-result":        "/internal/forms/quota-viewer-result",
-    "bingo-settings":             "/internal/forms/bingo-settings",
-    "bot-settings-adversarial":   "/internal/forms/bot-settings-adversarial"
+    "bot-settings-adversarial":   "/internal/forms/bot-settings-adversarial",
+    "adversarial-pdf-prompt":     "/internal/forms/adversarial-pdf-prompt"
   },
   "settings": {
     "global": {

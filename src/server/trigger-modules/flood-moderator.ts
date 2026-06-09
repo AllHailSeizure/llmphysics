@@ -12,7 +12,7 @@ export const MODULE = {
   triggers: ['onPostSubmit', 'onModAction', 'onPostDelete'],
   redisKeys: [
     'bot:flood:handled:{postId}',  // dedup — legacy key format, do not rename (live data)
-    'flood:post:{postId}',          // post hash shared with bingo — legacy key format
+    'flood:post:{postId}',          // post hash — legacy key format
     'flood:posts',                  // global sorted set — legacy key format
   ],
   settings: [

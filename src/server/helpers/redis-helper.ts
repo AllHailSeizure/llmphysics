@@ -1,9 +1,8 @@
 import { redis } from '@devvit/web/server';
 
 // ─── Post tracking (hash-based) ───────────────────────────────────────────────
-// One hash per Reddit post. The flood moderator owns the quota fields and the
-// quota evaluation; the bingo game tags posts with their game. The hash itself
-// is a record of a post, not a flood-moderator artifact.
+// One hash per Reddit post. The flood moderator owns the quota fields and
+// quota evaluation. The hash is a record of a post, not a flood-moderator artifact.
 
 export interface FloodIgnoreSettings {
   ignoreDeleted: boolean;
@@ -36,9 +35,9 @@ export interface FloodStatus {
 const postKey = (postId: string) => `flood:post:${postId}`;
 const POSTS_KEY = 'flood:posts';
 
-// Fixed buffer — longer than any reasonable quota window or game length so neither
-// the flood quota nor the bingo game loses history. Quota math is window-based
-// (zRemRangeByScore + zRange), so a longer TTL never affects it.
+// Fixed buffer — longer than any reasonable quota window so the flood quota
+// never loses history. Quota math is window-based (zRemRangeByScore + zRange),
+// so a longer TTL never affects it.
 const POST_TTL_SECONDS = 8 * 24 * 60 * 60;
 
 export async function trackPost(
@@ -72,21 +71,6 @@ export async function markPostModRemoved(postId: string): Promise<void> {
 
 export async function markPostAutoRemoved(postId: string): Promise<void> {
   await redis.hSet(postKey(postId), { isAutoRemoved: '1' });
-}
-
-// ─── Bingo game association ───────────────────────────────────────────────────
-
-export async function tagPostWithGame(postId: string, gameId: string): Promise<void> {
-  await redis.hSet(postKey(postId), { gameId });
-  // A function that can create a key owns that key's TTL. trackPost normally
-  // creates the hash first, but if it never ran (e.g. the poster could not be
-  // resolved) this hSet is the first writer — so set the TTL unconditionally.
-  await redis.expire(postKey(postId), POST_TTL_SECONDS);
-}
-
-export async function getPostGameId(postId: string): Promise<string | null> {
-  const val = await redis.hGet(postKey(postId), 'gameId');
-  return val ?? null;
 }
 
 export async function evaluateFloodStatus(
