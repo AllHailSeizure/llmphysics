@@ -1,0 +1,15 @@
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  color: #1a1a1a;
+  max-width: 720px;
+  margin: 48px auto;
+  padding: 0 24px 80px;
+}
+h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+h2 { font-size: 16px; font-weight: 600; margin-top: 32px; margin-bottom: 8px; }
+p, li { color: #333; }
+ul { padding-left: 20px; }
+.meta { font-size: 13px; color: #888; margin-bottom: 40px; }
+a { color: #0057ff; }

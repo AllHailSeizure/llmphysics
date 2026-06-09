@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LLMPhysics Bot — Privacy Policy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>LLMPhysics Bot — Privacy Policy</h1>
+  <p class="meta">Last updated: June 2026</p>
+
+  <p>This policy explains what data LLMPhysics Bot collects, how it is used, and how it is stored.</p>
+
+  <h2>1. Data collected</h2>
+  <p>The Bot processes the following data to perform moderation tasks:</p>
+  <ul>
+    <li><strong>Reddit user IDs</strong> — to enforce per-user posting quotas and track self-response violations</li>
+    <li><strong>Post and comment IDs</strong> — to associate moderation actions with content</li>
+    <li><strong>Post and comment text</strong> — to evaluate length limits and depth; for AI review, to send to Google Gemini</li>
+    <li><strong>Post flair</strong> — to apply flair-specific rules</li>
+    <li><strong>Moderator actions</strong> — to track comment removals for reporting purposes</li>
+  </ul>
+  <p>The Bot does not collect email addresses, IP addresses, or any off-Reddit personal information.</p>
+
+  <h2>2. Data storage</h2>
+  <p><strong>Devvit Redis</strong> — Quota counters, session state, and moderation flags are stored in Devvit's per-app Redis store. This data is scoped to the Bot's app installation and is subject to Devvit's data retention policies. Quota data expires automatically (rolling 24-hour window).</p>
+  <p><strong>Supabase</strong> — Structured logs are written to a Supabase database operated by the moderator team. This includes: module name, event type, action taken, Reddit user ID, and post/comment ID. These logs are used for debugging and moderation oversight. No post or comment body text is stored in Supabase.</p>
+  <p><strong>PDF review jobs</strong> — When a review is requested for a post with a linked PDF, the PDF URL and processing status are stored in Supabase until the review is complete.</p>
+
+  <h2>3. Third-party services</h2>
+  <p><strong>Google Gemini API</strong> — When the Adversarial Reviewer is used, post content and linked material are sent to Google's Gemini API for analysis. Google's <a href="https://policies.google.com/privacy">Privacy Policy</a> applies to that processing.</p>
+  <p><strong>Wikipedia / Zenodo</strong> — The Bot may fetch content from Wikipedia and Zenodo to support the !define command and PDF review. No user data is sent to these services.</p>
+
+  <h2>4. Data sharing</h2>
+  <p>Data collected by the Bot is not sold or shared with third parties except as described above (Google Gemini for AI review).</p>
+
+  <h2>5. Data retention</h2>
+  <p>Redis data expires automatically per the Bot's configured TTLs. Supabase logs are retained at moderator discretion. You may request deletion of log entries referencing your user ID by contacting the moderators via modmail.</p>
+
+  <h2>6. Your rights</h2>
+  <p>Reddit's own <a href="https://www.reddit.com/policies/privacy-policy">Privacy Policy</a> governs Reddit's handling of your data. For data stored by the Bot, contact the r/llmphysics moderators via modmail.</p>
+
+  <h2>Contact</h2>
+  <p><a href="https://www.reddit.com/message/compose/?to=/r/llmphysics">Message the r/llmphysics moderators</a>.</p>
+</body>
+</html>

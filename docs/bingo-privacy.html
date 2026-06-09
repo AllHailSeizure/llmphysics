@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LLMPhysics Bingo — Privacy Policy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>LLMPhysics Bingo — Privacy Policy</h1>
+  <p class="meta">Last updated: June 2026</p>
+
+  <p>This policy explains what data LLMPhysics Bingo collects, how it is used, and how it is stored.</p>
+
+  <h2>1. Data collected</h2>
+  <p>The Game collects and processes the following data:</p>
+  <ul>
+    <li><strong>Reddit user IDs</strong> — to generate and store a bingo card per player per game post, and to track which tiles each player has marked</li>
+    <li><strong>Reddit post IDs and comment IDs</strong> — to associate game events with subreddit activity</li>
+    <li><strong>Post and comment text</strong> — to evaluate whether tile conditions have been met, including sending content to Google's Gemini API for AI-assisted validation</li>
+    <li><strong>Post flair</strong> — required for certain tile conditions (e.g. "Missing the Joke" requires the Humorous flair)</li>
+  </ul>
+  <p>The Game does not collect email addresses, IP addresses, or any off-Reddit personal information.</p>
+
+  <h2>2. Data storage</h2>
+  <p><strong>Devvit Redis</strong> — Bingo card state (tile layout and marked status) is stored per user per game post in Devvit's per-app Redis store. This data is scoped to the Game's app installation. Game data expires automatically after 8 days of game post inactivity.</p>
+  <p><strong>Event queue</strong> — Subreddit events (posts and comments) are queued in Redis for batch processing by the tile validator. Queued events expire after 48 hours.</p>
+
+  <h2>3. Third-party services</h2>
+  <p><strong>Google Gemini API</strong> — Post and comment text is sent to Google's Gemini API to evaluate tile conditions that require contextual judgment (for example, determining whether a comment is earnestly criticising a humorous post). Google's <a href="https://policies.google.com/privacy">Privacy Policy</a> applies to this processing. Only content that is already publicly visible on r/llmphysics is sent.</p>
+
+  <h2>4. Data sharing</h2>
+  <p>Data collected by the Game is not sold or shared with third parties except as described above (Google Gemini for tile validation).</p>
+
+  <h2>5. Data retention</h2>
+  <p>Game state in Redis expires automatically after 8 days. You may request deletion of data associated with your user ID by contacting the moderators via modmail.</p>
+
+  <h2>6. Your rights</h2>
+  <p>Reddit's own <a href="https://www.reddit.com/policies/privacy-policy">Privacy Policy</a> governs Reddit's handling of your data. For data stored by the Game, contact the r/llmphysics moderators via modmail.</p>
+
+  <h2>Contact</h2>
+  <p><a href="https://www.reddit.com/message/compose/?to=/r/llmphysics">Message the r/llmphysics moderators</a>.</p>
+</body>
+</html>
