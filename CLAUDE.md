@@ -105,11 +105,11 @@ Reddit events → `devvit.json` → `POST /internal/triggers/<slug>` → `regist
 Every trigger module checks its enabled flag as its **first line** and returns early if off:
 
 ```typescript
-const enabled = await readSetting('myModEnabled', true);
+const enabled = (await settings.get<boolean>('myModEnabled')) ?? true;
 if (!enabled) return;
 ```
 
-Naming convention: `<camelCasePrefix>Enabled` (e.g. `depthCapModEnabled`, `floodModEnabled`, `selfResponseModEnabled`, `lengthModEnabled`). Add the key to `DEFAULTS` in `settings-helper.ts` (default `true`) and a `boolean` field in `admin.ts`.
+Naming convention: `<camelCasePrefix>Enabled` (e.g. `depthCapModEnabled`, `floodModEnabled`). Declare in `devvit.json` under `settings.subreddit` with `"type": "boolean"` and `"defaultValue": true`.
 
 ### Adding a module (2 lines in `registry.ts`)
 
@@ -193,11 +193,9 @@ Runtime settings are stored in Redis under `settings:<key>`. All reads/writes go
 - `readAllSettings()` — reads every key in `DEFAULTS`
 - `formatSignature(raw)` — superscripts each word and prepends `---`; returns `''` on empty input
 
-**Two-tier settings system:** **Redis settings** (`helpers/settings-helper.ts`) store most runtime configuration under `settings:<key>` and are read/written via `readSetting()` / `writeSetting()`. **Platform settings** (declared in `devvit.json` under `settings.global` or `settings.subreddit`) are accessed via `import { settings } from '@devvit/web/server'` → `settings.get<string>('key')` and are managed by the Devvit platform (encrypted for secrets, editable in Developer Portal). Example: `geminiApiKey` is a platform secret; module enable flags are Redis settings.
+**Settings** are declared in `devvit.json` under `settings.subreddit` (mod-editable via the Reddit Developer Portal installation page) or `settings.global` (secrets like `geminiApiKey`). Read via `import { settings } from '@devvit/web/server'` → `(await settings.get<T>('key')) ?? defaultValue`.
 
-**Adding a new Redis setting:** add it to `DEFAULTS` in `settings-helper.ts`, then add the form field in `settings-registry.ts` (which exports `SETTINGS_MENUS` consumed by `admin.ts`). Adding a new admin UI settings group also requires updating `SETTINGS_MENUS` in `settings-registry.ts`.
-
-The `admin.ts` settings form is a two-route pair: `POST /internal/menu/bot-settings-<group>` returns `showForm`, and `POST /internal/forms/bot-settings-<group>` saves submitted values. This pattern is reused by all action modules.
+**Adding a new setting:** add a key to `devvit.json` `settings.subreddit` with `type`, `label`, `helpText`, and `defaultValue`. Then read it in the module with `settings.get<T>()`. No other files need to change.
 
 ---
 

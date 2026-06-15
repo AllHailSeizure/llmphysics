@@ -30,7 +30,7 @@ const all = await readAllSettings();    // every key in DEFAULTS
 const sig = formatSignature(raw);       // superscripts each word, prepends '---\n\n'
 ```
 
-**To add a new setting:** add to `DEFAULTS` in this file, then add the UI field in `settings-registry.ts`. Key format: `<moduleName>.<settingName>`.
+**To add a new setting:** declare it in `devvit.json` under `settings.subreddit`, then read it in the module via `settings.get<T>('key')`. The helpers here (`readSetting`/`writeSetting`) are legacy Redis-backed storage — do not use for new mod-configurable settings.
 
 ---
 
