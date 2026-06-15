@@ -1,6 +1,6 @@
 {
   "name": "llmphysics-bot",
-  "version": "2.15.1",
+  "version": "2.15.2.1",
   "private": true,
   "scripts": {
     "build": "vite build",
@@ -11,16 +11,16 @@
     "format": "prettier --write src"
   },
   "dependencies": {
-    "@devvit/web": "0.13.2",
+    "@devvit/web": "0.13.3",
     "@hono/node-server": "^2.0.0",
-    "devvit": "0.13.2",
+    "devvit": "0.13.3",
     "hono": "^4.0.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6"
   },
   "devDependencies": {
-    "@devvit/shared-types": "0.13.2",
-    "@devvit/start": "0.13.2",
+    "@devvit/shared-types": "0.13.3",
+    "@devvit/start": "0.13.3",
     "@types/node": "^20.0.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",

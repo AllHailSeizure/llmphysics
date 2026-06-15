@@ -102,7 +102,8 @@
     "quota-viewer-search":        "/internal/forms/quota-viewer-search",
     "quota-viewer-result":        "/internal/forms/quota-viewer-result",
     "bot-settings-adversarial":   "/internal/forms/bot-settings-adversarial",
-    "adversarial-pdf-prompt":     "/internal/forms/adversarial-pdf-prompt"
+    "adversarial-no-link":        "/internal/forms/adversarial-no-link",
+    "adversarial-multi-link":     "/internal/forms/adversarial-multi-link"
   },
   "settings": {
     "global": {

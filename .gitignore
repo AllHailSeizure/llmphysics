@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+# Supabase CLI local state
+supabase/.temp/
+
 # TypeScript build output
 dist/
 
