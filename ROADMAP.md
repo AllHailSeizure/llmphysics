@@ -19,13 +19,27 @@
 - Mod controls: create bingo post, configure winner message templates, inject test events, run batch manually
 
 **Milestones:**
-- [ ] Brainstorm and write ~10 tile definitions (label, description, examples, edge cases) — in conversation first
-- [ ] Populate `TILE_VALIDATORS` in `src/server/helpers/tile-validator-helper.ts`
-- [ ] Add `MODULE` descriptor to `src/server/action-modules/bingo-game.ts`
-- [ ] `npm run build` — confirm zero TypeScript errors
-- [ ] Playtest: create bingo post → inject test events → confirm tiles mark → win detection fires
-- [ ] Publish via `/module-promote`
-
-**Testing plan:**
-- Automated: inject test events via bingo settings form, check Redis tile marks via devvit logs
-- Interactive: create a real bingo post, trigger a tile via a real comment, confirm it marks on card UI
+- [x] Brainstorm and write ~10 tile definitions (label, description, examples, edge cases) — in conversation first
+- [x] Populate `TILE_VALIDATORS` in `src/server/helpers/tile-validator-helper.ts`
+- [x] Add `MODULE` descriptor to `src/server/action-modules/bingo-game.ts`
+- [x] `npm run build` — confirm zero TypeScript errors
+- [x] Playtest: create bingo post → inject test events → confirm tiles mark → win detection fires
+- [x] Publish via `/module-promote`
+- [x] Migrate settings to app
+    - [ ] Scheduler settings 
+- [x] Set up tile trigger tracking
+    - [x] Against when triggered
+    - [ ] Against specified backlogs
+            - [ ] vs. Monte Carlo of cards possibly?
+        - [ ] Determime ideal length of time for scheduler
+- [ ] Tune tiles against real events in the sub
+    - [ ] Deterministic evaluators for the 3 counting tiles (em-dash, echo-chamber, 7-removed) — code counts, no LLM
+    - [ ] (parked → ideas.md) scope→prefilter→adjudicate pipeline for semantic tiles, only if one proves flaky
+- [ ] Finish UI 
+    -[x] Background
+    -[x] Tiling
+    -[x] Titling
+    -[ ] Post launch image
+    -[ ] Modal stlying
+- [ ] Monitor live on LLMPhysics
+- [ ] Publish

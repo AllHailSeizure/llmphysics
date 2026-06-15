@@ -1,16 +1,21 @@
-/**
- * verify-adversarial-reviewer.mjs
- *
- * Usage:
- *   node scripts/verify-adversarial-reviewer.mjs --auto
- *   node scripts/verify-adversarial-reviewer.mjs --check-enabled <postFullname>
- *   node scripts/verify-adversarial-reviewer.mjs --cleanup <postFullname>
- */
+#!/usr/bin/env node
+// verify-adversarial-reviewer.mjs
+//
+// Action module verification for adversarial-reviewer.
+// Claude drives interactive steps in conversation; script handles seeding and API-state checks.
+//
+// Flags:
+//   --seed                     Create a plain self-post; print fullname + playtest URL
+//   --seed-link <url>          Create a link post with <url>; print fullname + playtest URL
+//   --check-review <postId>    Wait 8s; assert 1 distinguished bot comment with ## Adversarial Review
+//   --check-dedup  <postId>    Assert still exactly 1 bot comment (dedup held second trigger)
+//   --cleanup      <postId>    Delete the post
 
 import { readFileSync } from 'fs';
 import { homedir } from 'os';
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
+
 const outer = JSON.parse(readFileSync(homedir() + '/.devvit/token', 'utf8'));
 const inner = JSON.parse(Buffer.from(outer.token, 'base64').toString());
 const TOKEN = inner.accessToken;
@@ -23,28 +28,51 @@ async function reddit(method, path, body) {
     opts.body = new URLSearchParams(body).toString();
   }
   const res = await fetch(`https://oauth.reddit.com${path}`, opts);
-  if (!res.ok) throw new Error(`${method} ${path} → ${res.status}`);
+  if (!res.ok) throw new Error(`${method} ${path} → ${res.status}: ${await res.text()}`);
   return res.json();
 }
 
-async function submitPost(title) {
+async function submitSelfPost(title) {
   const d = await reddit('POST', '/api/submit', {
     api_type: 'json', kind: 'self', sr: 'llmphysics_dev',
-    title: `[verify] ${title} ${Date.now()}`,
-    text:  'Automated test post for adversarial reviewer verification.',
+    title: `[verify] adversarial-reviewer ${title} ${Date.now()}`,
+    text: 'Automated verification post for adversarial-reviewer. Safe to delete.',
   });
   const id = d.json?.data?.id;
-  if (!id) throw new Error(JSON.stringify(d));
+  if (!id) throw new Error(`Submit failed: ${JSON.stringify(d)}`);
   return `t3_${id}`;
 }
 
-async function getComments(postId) {
+async function submitLinkPost(url, label) {
+  const d = await reddit('POST', '/api/submit', {
+    api_type: 'json', kind: 'link', sr: 'llmphysics_dev',
+    title: `[verify] adversarial-reviewer ${label} ${Date.now()}`,
+    url,
+  });
+  const id = d.json?.data?.id;
+  if (!id) throw new Error(`Submit failed: ${JSON.stringify(d)}`);
+  return `t3_${id}`;
+}
+
+async function getPostComments(postId) {
+  const pid = postId.replace('t3_', '');
+  const res = await fetch(
+    `https://oauth.reddit.com/r/llmphysics_dev/comments/${pid}?limit=25&depth=1&sort=new`,
+    { headers: { Authorization: `Bearer ${TOKEN}`, 'User-Agent': UA } },
+  );
+  if (!res.ok) throw new Error(`GET comments → ${res.status}`);
+  const data = await res.json();
+  const children = data[1]?.data?.children ?? [];
+  return children.filter(c => c.kind === 't1').map(c => c.data);
+}
+
+function playtestUrl(postId) {
   const shortId = postId.replace('t3_', '');
-  const d = await reddit('GET', `/r/llmphysics_dev/comments/${shortId}?limit=10`);
-  return d[1]?.data?.children?.map(c => c.data) ?? [];
+  return `https://www.reddit.com/r/llmphysics_dev/comments/${shortId}/?playtest=llmphysics-bot`;
 }
 
 // ── Test runner ───────────────────────────────────────────────────────────────
+
 let passed = 0, failed = 0;
 async function test(name, fn) {
   process.stdout.write(`  ${name} ... `);
@@ -53,83 +81,112 @@ async function test(name, fn) {
 }
 function assert(cond, msg) { if (!cond) throw new Error(msg); }
 
+// ── Arg parsing ───────────────────────────────────────────────────────────────
+
 const args = process.argv.slice(2);
+const has = flag => args.includes(flag);
+const after = flag => args[args.indexOf(flag) + 1];
 
-// ── --auto ────────────────────────────────────────────────────────────────────
-if (args.includes('--auto')) {
-  console.log('\n=== Code audit ===');
-  console.log('  [BLOCKER]     getModPermissionsForSubreddit() line 196 — returns empty in cloud; mods not exempt from daily quota');
-  console.log('  [IMPROVEMENT] Missing MODULE descriptor export');
-  console.log('  [IMPROVEMENT] fetchWithLogging log events are not snake_case ("FETCH START" etc.)');
+if (!has('--seed') && !has('--seed-link') && !has('--check-review') && !has('--check-dedup') && !has('--cleanup')) {
+  console.log('Usage:');
+  console.log('  node scripts/verify-adversarial-reviewer.mjs --seed');
+  console.log('  node scripts/verify-adversarial-reviewer.mjs --seed-link <url>');
+  console.log('  node scripts/verify-adversarial-reviewer.mjs --check-review <postFullname>');
+  console.log('  node scripts/verify-adversarial-reviewer.mjs --check-dedup  <postFullname>');
+  console.log('  node scripts/verify-adversarial-reviewer.mjs --cleanup      <postFullname>');
   console.log('');
-
-  console.log('=== Settings required ===');
-  console.log('  adversarialReviewerEnabled  = ON   (install settings page)');
-  console.log('  adversarialReviewerFlairId  = (blank — allow any flair)');
-  console.log('');
-
-  const postId  = await submitPost('adversarial reviewer toggle');
-  const shortId = postId.replace('t3_', '');
-  console.log(`Test post: https://www.reddit.com/r/llmphysics_dev/comments/${shortId}/?playtest=llmphysics-bot`);
-  console.log(`Fullname:  ${postId}`);
-  console.log('');
-  console.log('--- Interactive test 1: Enabled path ---');
-  console.log('1. Open the test post URL above.');
-  console.log('2. Click "..." → "Request Adversarial Review".');
-  console.log('3. Wait for a toast. Tell me what it said.');
-  console.log('');
-  console.log(`Then run:  node scripts/verify-adversarial-reviewer.mjs --check-enabled ${postId}`);
-  console.log(`Cleanup:   node scripts/verify-adversarial-reviewer.mjs --cleanup ${postId}`);
+  console.log('Settings required (set once at https://developers.reddit.com/r/llmphysics_dev/apps/llmphysics-bot):');
+  console.log('  adversarialReviewerEnabled = ON');
+  console.log('  adversarialReviewerFlairId = (blank for happy-path tests)');
+  console.log('  geminiApiKey               = (already configured)');
+  process.exit(0);
 }
 
-// ── --check-enabled ───────────────────────────────────────────────────────────
-if (args.includes('--check-enabled')) {
-  const postId = args[args.indexOf('--check-enabled') + 1];
-  if (!postId) { console.error('Usage: --check-enabled <postFullname>'); process.exit(1); }
+// ── --seed ────────────────────────────────────────────────────────────────────
 
-  console.log('\n=== Test 1: Enabled path ===');
+if (has('--seed')) {
+  const postId = await submitSelfPost('text-only');
+  console.log(`Seeded:  ${postId}`);
+  console.log(`URL:     ${playtestUrl(postId)}`);
+  console.log(`Cleanup: node scripts/verify-adversarial-reviewer.mjs --cleanup ${postId}`);
+}
+
+// ── --seed-link ───────────────────────────────────────────────────────────────
+
+if (has('--seed-link')) {
+  const url = after('--seed-link');
+  if (!url) { console.error('--seed-link requires a URL argument'); process.exit(1); }
+
+  // Derive a label from the URL hostname for readability
+  let label = 'pdf';
+  try { label = new URL(url).hostname.replace(/^www\./, ''); } catch { /* ignore */ }
+
+  const postId = await submitLinkPost(url, label);
+  console.log(`Seeded:  ${postId}`);
+  console.log(`URL:     ${playtestUrl(postId)}`);
+  console.log(`PDF URL: ${url}`);
+  console.log(`Cleanup: node scripts/verify-adversarial-reviewer.mjs --cleanup ${postId}`);
+}
+
+// ── --check-review ────────────────────────────────────────────────────────────
+
+if (has('--check-review')) {
+  const postId = after('--check-review');
+  if (!postId) { console.error('--check-review requires a post fullname'); process.exit(1); }
+
+  console.log(`\nChecking review comment on ${postId}...`);
   console.log('Waiting 8s for bot...');
   await new Promise(r => setTimeout(r, 8000));
 
-  await test('Bot posted a distinguished review comment', async () => {
-    const comments   = await getComments(postId);
-    const botComment = comments.find(c =>
+  await test('LLMPhysics-bot posted a distinguished review comment', async () => {
+    const comments = await getPostComments(postId);
+    const botComments = comments.filter(c =>
       c.author?.toLowerCase() === 'llmphysics-bot' && c.distinguished === 'moderator'
     );
-    assert(botComment, 'No distinguished comment by LLMPhysics-bot found');
+    assert(botComments.length >= 1,
+      `expected ≥1 distinguished bot comment, got ${botComments.length} (total: ${comments.length}, authors: ${comments.map(c => c.author).join(', ') || 'none'})`
+    );
     assert(
-      botComment.body?.includes('Adversarial Review'),
-      `Comment body missing expected header: ${botComment.body?.slice(0, 120)}`
+      botComments[0].body?.includes('## Adversarial Review'),
+      `comment missing "## Adversarial Review" header. Body start: ${botComments[0].body?.slice(0, 150)}`
+    );
+    console.log(`\n    body preview: ${botComments[0].body?.slice(0, 120)}...`);
+  });
+
+  console.log(`\nPassed: ${passed}  Failed: ${failed}`);
+  if (failed > 0) process.exit(1);
+}
+
+// ── --check-dedup ─────────────────────────────────────────────────────────────
+
+if (has('--check-dedup')) {
+  const postId = after('--check-dedup');
+  if (!postId) { console.error('--check-dedup requires a post fullname'); process.exit(1); }
+
+  console.log(`\nChecking dedup held on ${postId}...`);
+  console.log('Waiting 8s for bot...');
+  await new Promise(r => setTimeout(r, 8000));
+
+  await test('Post still has exactly 1 bot comment (dedup prevented duplicate)', async () => {
+    const comments = await getPostComments(postId);
+    const botComments = comments.filter(c =>
+      c.author?.toLowerCase() === 'llmphysics-bot' && c.distinguished === 'moderator'
+    );
+    assert(botComments.length === 1,
+      `expected exactly 1 bot comment, got ${botComments.length} — dedup may not have fired`
     );
   });
 
   console.log(`\nPassed: ${passed}  Failed: ${failed}`);
-
-  if (!failed) {
-    console.log('');
-    console.log('--- Interactive test 2: Disabled path ---');
-    console.log('1. Go to https://developers.reddit.com/r/llmphysics_dev/apps/llmphysics-bot');
-    console.log('2. Set "Adversarial Reviewer — Enable" to OFF, save.');
-    console.log('3. Click "..." → "Request Adversarial Review" on any post.');
-    console.log('4. Expected toast: "Adversarial reviewer is disabled."');
-    console.log('5. Confirm the toast text, then restore the toggle if desired.');
-    console.log('');
-    console.log(`Cleanup:  node scripts/verify-adversarial-reviewer.mjs --cleanup ${postId}`);
-  }
+  if (failed > 0) process.exit(1);
 }
 
 // ── --cleanup ─────────────────────────────────────────────────────────────────
-if (args.includes('--cleanup')) {
-  const postId = args[args.indexOf('--cleanup') + 1];
+
+if (has('--cleanup')) {
+  const postId = after('--cleanup');
   if (!postId) { console.error('--cleanup requires a post fullname'); process.exit(1); }
   console.log(`Deleting ${postId}...`);
   await reddit('POST', '/api/del', { id: postId });
   console.log('Done.');
-}
-
-if (!args.includes('--auto') && !args.includes('--check-enabled') && !args.includes('--cleanup')) {
-  console.log('Usage:');
-  console.log('  node scripts/verify-adversarial-reviewer.mjs --auto');
-  console.log('  node scripts/verify-adversarial-reviewer.mjs --check-enabled <postFullname>');
-  console.log('  node scripts/verify-adversarial-reviewer.mjs --cleanup <postFullname>');
 }

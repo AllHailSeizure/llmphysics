@@ -1,7 +1,7 @@
 # Verification Status
 
-_Last updated: 2026-06-02_
-_Devvit CLI: 0.12.24_
+_Last updated: 2026-06-15_
+_Devvit CLI: 0.13.3_
 
 ---
 
@@ -187,21 +187,40 @@ _Devvit CLI: 0.12.24_
 
 ## adversarial-reviewer
 
-**Last verified:** 2026-06-01 — VERIFIED ✓
+**Last verified:** 2026-06-15 — VERIFIED ✓ _(issue #2 RESOLVED — PDF extraction confirmed)_
 **Last promoted:** _(not yet promoted)_
-**Module hash:** `67f680c6a5fa9cf601193d954e41b02cfde30666`
-**Test script hash:** `3299e06429f903f4a0f31bee78c5359daaaae118`
-**Devvit CLI at verify:** 0.12.24
+**Module hash:** `eeab635616e9294c1496f7d106743dea65cfd22c`
+**Test script hash:** `509aa357d6374c45492c15fae800fed1f91194d0`
+**Devvit CLI at verify:** 0.13.3
 
 | Test | Description | Status |
 |------|-------------|--------|
-| Happy path | Enabled + no flair gate → review posted as distinguished comment | PASS |
-| Disabled path | Toggle OFF → "Adversarial reviewer is disabled." toast | PASS |
-| Flair gate: rejected | Flair ID set, post has no flair → rejection toast | PASS |
+| Happy path (text-only) | Self-post, no URLs → no-link form shown; empty submit → text-only review posted as distinguished mod comment | PASS |
+| Happy path (form + URL) | No-link form submitted with arxiv URL → PDF job queued via Supabase; comment shows `Gemini 3.5 Flash (PDF)` | PASS |
+| Dedup | Second trigger while lock held → "already reviewed" toast, no second comment | PASS |
+| Disabled path | `adversarialReviewerEnabled=OFF` → "Adversarial reviewer is disabled." toast | PASS |
+| Flair gate: rejected | Flair ID set, post has no flair → rejection toast, no comment posted | PASS |
 | Flair gate: accepted | Flair ID set, post has matching flair → review posted | PASS |
-| Log format | snake_case events, data objects | PASS |
-| Blocker fixed | `getModPermissionsForSubreddit` → `getModerators()` | FIXED |
-| Dev-sub bypass | Daily quota skipped on llmphysics_dev (same pattern as dedup lock) | FIXED |
+| PDF: arxiv.org | arxiv link post (1 URL, direct path) → `extraction_type=URL`, `Gemini 3.5 Flash (PDF)` | PASS |
+| PDF: zenodo.org | zenodo link post → `extraction_type=API`, `Gemini 3.5 Flash (PDF)` | PASS |
+| PDF: figshare.com | figshare direct URL → `extraction_type=API`, `Gemini 3.5 Flash (PDF)` | PASS |
+| PDF: vixra.org | vixra link post → `extraction_type=URL` (URL transform fired), but PDF download blocked (403) → text-only fallback, bare `Gemini 3.5 Flash` | PARTIAL |
+| Multi-link form | Post with 2+ URLs → multi-link picker shown; selected arxiv URL → `Gemini 3.5 Flash (PDF)` | PASS |
+| Log format | Many event names not snake_case; new form-path events are snake_case | IMPROVEMENT |
+
+**Code audit:** No BLOCKERs.
+- IMPROVEMENT: No `export const MODULE` descriptor
+- IMPROVEMENT: Log event names use freeform strings for many events (`'FETCH START'`, `'Adversarial review posted'`, `'PDF review job queued to Supabase'`, etc.); only form-path events added in this revision are snake_case
+- IMPROVEMENT: `log-helper.ts` reads `'supabaseServiceKey'` but module reads `'supabaseServiceRoleKey'` — key name mismatch; `bot_logs` Supabase persistence silently fails (table confirmed empty, 0 rows)
+
+**Issue #2 — RESOLVED (partial):**
+- arxiv: `Gemini 3.5 Flash (PDF)` ✓ — URL transform + PDF extraction working
+- zenodo: `extraction_type=API`, `Gemini 3.5 Flash (PDF)` ✓ — Zenodo API extraction working
+- figshare: `extraction_type=API`, `Gemini 3.5 Flash (PDF)` ✓ — figshare API extraction working (direct URL; DOI URL bypasses resolver — see GitHub issue)
+- vixra: URL transform fires (`extraction_type=URL`), but vixra blocks direct PDF fetch → text-only fallback; model shows bare `Gemini 3.5 Flash`
+- DOI URLs: bypass domain resolvers entirely → see GitHub issue for fix
+
+**New in this run:** form-based UI flows (no-link form, multi-link picker) added and verified. `adversarial-pdf-prompt` form endpoint removed; replaced with `adversarial-no-link` and `adversarial-multi-link` in `devvit.json`.
 
 ---
 

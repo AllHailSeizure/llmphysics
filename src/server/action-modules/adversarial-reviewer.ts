@@ -45,9 +45,22 @@ export const SYSTEM_PROMPT =
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function extractFirstBodyUrl(body: string): string | null {
-  const match = body.match(/https?:\/\/[^\s\)\]>"]+/);
-  return match ? match[0] : null;
+function extractAllBodyUrls(body: string): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const m of body.matchAll(/https?:\/\/[^\s\)\]>"]+/g)) {
+    if (!seen.has(m[0])) { seen.add(m[0]); result.push(m[0]); }
+  }
+  return result;
+}
+
+function collectPostUrls(postUrl: string | undefined, body: string): string[] {
+  const result: string[] = [];
+  if (postUrl && !postUrl.includes('reddit.com')) result.push(postUrl);
+  for (const u of extractAllBodyUrls(body)) {
+    if (!result.includes(u)) result.push(u);
+  }
+  return result;
 }
 
 async function fetchWithLogging(url: string, options: RequestInit = {}): Promise<Response> {
@@ -105,6 +118,72 @@ async function callGemini(title: string, body: string, apiKey: string): Promise<
   const data = await res.json() as GeminiResponse;
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
   return text ? { text, model } : null;
+}
+
+// ─── Shared form helper ───────────────────────────────────────────────────────
+
+type PendingForm = { postId: PostId; title: string; body: string; subredditName: string };
+
+async function queueOrReview(
+  { postId, title, body: postBody, subredditName }: PendingForm,
+  pdfUrl: string | null,
+): Promise<UiResponse> {
+  const supabaseUrl = (await settings.get<string>('supabaseUrl')) || '';
+  const supabaseKey = (await settings.get<string>('supabaseServiceRoleKey')) || '';
+  const dedupeKey   = `bot:adversarial:lock:${postId}`;
+
+  if (supabaseUrl && supabaseKey) {
+    try {
+      const jobRes = await fetchWithLogging(`${supabaseUrl}/rest/v1/review_jobs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify({ post_id: postId, pdf_url: pdfUrl, title, body: postBody }),
+      });
+      if (jobRes.ok || jobRes.status === 409) {
+        await redis.zAdd(PENDING_JOBS_KEY, { score: Date.now(), member: postId as string });
+        log.info('review_queued_via_form', { postId, pdfUrl: pdfUrl ?? '(none)' });
+        return { showToast: { text: 'Review request queued. Please wait.', appearance: 'neutral' } };
+      }
+      log.warn('supabase_submit_failed', { postId, status: jobRes.status });
+    } catch (err) {
+      log.warn('supabase_submit_threw', { postId, error: (err as Error).message });
+    }
+  }
+
+  // Inline text-only fallback
+  const apiKey = (await settings.get<string>('geminiApiKey')) || '';
+  if (!apiKey) return { showToast: { text: 'Gemini API key not configured.', appearance: 'neutral' } };
+
+  try {
+    const result = await callGemini(title, postBody, apiKey);
+    if (!result) {
+      await redis.del(dedupeKey);
+      await redis.zRem(ACTIVE_LOCKS_KEY, [postId as string]);
+      return { showToast: { text: 'Gemini returned an empty review.', appearance: 'neutral' } };
+    }
+    const rawSignature = (await settings.get<string>('botSignature')) ?? '';
+    const signature    = formatSignature(rawSignature);
+    const fullPost     = await reddit.getPostById(postId);
+    const comment      = await fullPost.addComment({ text: result.text + signature });
+    await comment.distinguish(true);
+    log.info('text_review_posted_via_form', { postId });
+    if (subredditName.toLowerCase() === DEV_SUB) {
+      await redis.del(dedupeKey);
+      await redis.zRem(ACTIVE_LOCKS_KEY, [postId as string]);
+      log.info('dedup_lock_released', { postId });
+    }
+    return { showToast: { text: 'Review posted!', appearance: 'success' } };
+  } catch (err) {
+    log.error('form_fallback_failed', err as Error, { postId });
+    await redis.del(dedupeKey);
+    await redis.zRem(ACTIVE_LOCKS_KEY, [postId as string]);
+    return { showToast: { text: 'Review failed — try again later.', appearance: 'neutral' } };
+  }
 }
 
 // ─── Route handlers ───────────────────────────────────────────────────────────
@@ -187,10 +266,14 @@ export function register(app: Hono): void {
       }
     }
 
-    // Gate: per-user daily quota (mods exempt)
+    // Gate: per-user daily quota (mods exempt); also capture OP status for form prompt below
+    let isOp = false;
+    let currentUser: Awaited<ReturnType<typeof reddit.getCurrentUser>> | null = null;
     try {
-      const currentUser = await reddit.getCurrentUser();
+      currentUser = await reddit.getCurrentUser();
       if (currentUser) {
+        isOp = !!(fullPost.authorId && currentUser.id === fullPost.authorId);
+
         let isModerator = false;
         try {
           const mods = await reddit.getModerators({ subredditName, username: currentUser.username }).all();
@@ -211,19 +294,82 @@ export function register(app: Hono): void {
           // Claim quota slot — consumed even if the review fails
           await redis.set(userQuotaKey, '1', { expiration: new Date(Date.now() + USER_QUOTA_TTL_SECS * 1000) });
         }
+
       }
     } catch (err) {
       log.warn('Could not get current user for quota check', { error: (err as Error).message });
     }
 
-    // Collect PDF candidate URLs: link post URL first, then first body URL (if different)
-    const isLinkPost = !!postUrl && !postUrl.includes('reddit.com');
-    const bodyUrl    = extractFirstBodyUrl(postBody);
-    const candidateUrls: string[] = [];
-    if (isLinkPost && postUrl) candidateUrls.push(postUrl);
-    if (bodyUrl && bodyUrl !== postUrl) candidateUrls.push(bodyUrl);
+    const urls = collectPostUrls(postUrl, postBody);
+    const formContext = JSON.stringify({
+      postId, title: fullPost.title, body: postBody.slice(0, 8000), subredditName,
+    });
 
-    log.info('Review requested', { postId, isLinkPost, candidates: candidateUrls.length });
+    if (currentUser && urls.length === 0) {
+      await redis.set(`bot:adversarial:pending-form:${currentUser.id}`, formContext,
+        { expiration: new Date(Date.now() + 5 * 60 * 1000) });
+      log.info('showing_no_link_form', { postId });
+      return c.json<UiResponse>({
+        showForm: {
+          name: 'adversarial-no-link',
+          form: {
+            title: 'Request Adversarial Review',
+            acceptLabel: 'Submit',
+            fields: [{
+              type: 'paragraph',
+              name: 'manuscriptUrl',
+              label: 'Manuscript URL',
+              helpText: 'If your post is based on an external manuscript, you may submit a link. Otherwise, the bot will review your post.',
+              required: false,
+              defaultValue: '',
+            }],
+          },
+        },
+      });
+    }
+
+    if (currentUser && urls.length > 1) {
+      await redis.set(`bot:adversarial:pending-form:${currentUser.id}`, formContext,
+        { expiration: new Date(Date.now() + 5 * 60 * 1000) });
+      log.info('showing_multi_link_form', { postId, urlCount: urls.length });
+      return c.json<UiResponse>({
+        showForm: {
+          name: 'adversarial-multi-link',
+          form: {
+            title: 'Request Adversarial Review',
+            acceptLabel: 'Submit',
+            fields: [
+              {
+                type: 'select',
+                name: 'selectedUrl',
+                label: 'Select manuscript link',
+                helpText: 'Your post has multiple links. Please select the one that links to your manuscript.',
+                options: [
+                  ...urls.map(u => ({ label: u.length > 80 ? u.slice(0, 77) + '...' : u, value: u })),
+                  { label: 'Other', value: 'other' },
+                  { label: 'None — review post text only', value: 'none' },
+                ],
+                required: true,
+                multiSelect: false,
+              },
+              {
+                type: 'paragraph',
+                name: 'customUrl',
+                label: 'Custom URL',
+                helpText: 'If you selected "Other", paste the URL here.',
+                required: false,
+                defaultValue: '',
+              },
+            ],
+          },
+        },
+      });
+    }
+
+    // 1 URL, or currentUser unavailable (rare) — use first URL or empty
+    const candidateUrls = urls.slice(0, 1);
+
+    log.info('review_requested', { postId, candidates: candidateUrls.length });
 
     // ── PDF path: offload to Supabase Edge Function (no 30s timeout) ──────────
     const supabaseUrl = (await settings.get<string>('supabaseUrl')) || '';
@@ -450,5 +596,43 @@ export function register(app: Hono): void {
 
     const lockMsg = locksToRelease.length > 0 ? ` Cleared ${locksToRelease.length} lock(s).` : '';
     return c.json<UiResponse>({ showToast: { text: `LLM Reviewer settings saved.${lockMsg}`, appearance: 'success' } });
+  });
+
+  // ── Form: no-link URL input ──────────────────────────────────────────────────
+  app.post('/internal/forms/adversarial-no-link', async (c) => {
+    const formBody = await c.req.json<Record<string, unknown>>();
+    const pdfUrl   = (typeof formBody.manuscriptUrl === 'string' ? formBody.manuscriptUrl.trim() : '') || null;
+
+    const currentUser = await reddit.getCurrentUser();
+    if (!currentUser) return c.json<UiResponse>({ showToast: { text: 'Could not identify user.', appearance: 'neutral' } });
+
+    const pendingKey = `bot:adversarial:pending-form:${currentUser.id}`;
+    const raw = await redis.get(pendingKey);
+    if (!raw) return c.json<UiResponse>({ showToast: { text: 'Form expired. Please try again.', appearance: 'neutral' } });
+    await redis.del(pendingKey);
+
+    return c.json<UiResponse>(await queueOrReview(JSON.parse(raw) as PendingForm, pdfUrl));
+  });
+
+  // ── Form: multi-link picker ──────────────────────────────────────────────────
+  app.post('/internal/forms/adversarial-multi-link', async (c) => {
+    const formBody    = await c.req.json<Record<string, unknown>>();
+    const selectedRaw = formBody.selectedUrl;
+    // Devvit returns select fields as string[] even when multiSelect: false
+    const selected    = Array.isArray(selectedRaw) ? (selectedRaw[0] as string) : (selectedRaw as string ?? '');
+    const custom      = (typeof formBody.customUrl === 'string' ? formBody.customUrl.trim() : '');
+    const pdfUrl      = selected === 'other' ? (custom || null)
+                      : selected === 'none'  ? null
+                      : (selected || null);
+
+    const currentUser = await reddit.getCurrentUser();
+    if (!currentUser) return c.json<UiResponse>({ showToast: { text: 'Could not identify user.', appearance: 'neutral' } });
+
+    const pendingKey = `bot:adversarial:pending-form:${currentUser.id}`;
+    const raw = await redis.get(pendingKey);
+    if (!raw) return c.json<UiResponse>({ showToast: { text: 'Form expired. Please try again.', appearance: 'neutral' } });
+    await redis.del(pendingKey);
+
+    return c.json<UiResponse>(await queueOrReview(JSON.parse(raw) as PendingForm, pdfUrl));
   });
 }
