@@ -102,10 +102,8 @@
     "quota-viewer-search":        "/internal/forms/quota-viewer-search",
     "quota-viewer-result":        "/internal/forms/quota-viewer-result",
     "bot-settings-adversarial":   "/internal/forms/bot-settings-adversarial",
-    "adversarial-no-link":                "/internal/forms/adversarial-no-link",
-    "adversarial-multi-link":             "/internal/forms/adversarial-multi-link",
-    "bot-settings-adversarial-reviewer":  "/internal/forms/bot-settings-adversarial-reviewer",
-    "bot-settings-commenting":            "/internal/forms/bot-settings-commenting"
+    "adversarial-no-link":        "/internal/forms/adversarial-no-link",
+    "adversarial-multi-link":     "/internal/forms/adversarial-multi-link"
   },
   "settings": {
     "global": {

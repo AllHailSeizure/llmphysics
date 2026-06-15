@@ -79,19 +79,6 @@ const DEPTH_CAP_SETTINGS = {
       },
     },
   ],
-  reporting: [
-    {
-      key: 'depthCapReport',
-      defaultValue: true,
-      field: {
-        type: 'boolean',
-        name: 'depthCapReport',
-        label: 'Report to mod queue',
-        helpText: 'Submit a report when a comment hits the depth cap. Disable to prevent mod queue clogging.',
-        required: false,
-      },
-    },
-  ],
 };
 
 const FLOOD_SETTINGS = {
@@ -342,30 +329,6 @@ const ADVERSARIAL_REVIEWER_SETTINGS = {
       },
     },
   ],
-  postOptions: [
-    {
-      key: 'adversarialReviewerStickyComment',
-      defaultValue: false,
-      field: {
-        type: 'boolean',
-        name: 'adversarialReviewerStickyComment',
-        label: 'Sticky review comment',
-        helpText: 'Sticky the review comment to the top of the post after posting.',
-        required: false,
-      },
-    },
-    {
-      key: 'adversarialReviewerLockComment',
-      defaultValue: false,
-      field: {
-        type: 'boolean',
-        name: 'adversarialReviewerLockComment',
-        label: 'Lock review comment',
-        helpText: 'Lock the review comment after posting.',
-        required: false,
-      },
-    },
-  ],
 };
 
 const MOP_TOOL_SETTINGS = {
@@ -436,17 +399,12 @@ export const SETTINGS_MENUS: SettingsMenu[] = [
   {
     key: 'commenting',
     label: 'Commenting',
-    settings: [...DEPTH_CAP_SETTINGS.limits, ...DEPTH_CAP_SETTINGS.ignoreFlags, ...DEPTH_CAP_SETTINGS.reporting, ...SELF_RESPONSE_SETTINGS.ignoreFlags],
+    settings: [...DEPTH_CAP_SETTINGS.limits, ...DEPTH_CAP_SETTINGS.ignoreFlags, ...SELF_RESPONSE_SETTINGS.ignoreFlags],
   },
   {
     key: 'posting',
     label: 'Posting',
     settings: [...LENGTH_MOD_SETTINGS.limits],
-  },
-  {
-    key: 'adversarial-reviewer',
-    label: 'Adversarial Reviewer',
-    settings: [...ADVERSARIAL_REVIEWER_SETTINGS.postOptions],
   },
   {
     key: 'removal-messages',
