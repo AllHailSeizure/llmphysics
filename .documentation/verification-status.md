@@ -188,7 +188,7 @@ _Devvit CLI: 0.13.3_
 ## adversarial-reviewer
 
 **Last verified:** 2026-06-15 — VERIFIED ✓ _(issue #2 RESOLVED — PDF extraction confirmed)_
-**Last promoted:** _(not yet promoted)_
+**Last promoted:** 2026-06-15 — v2.15.5
 **Module hash:** `eeab635616e9294c1496f7d106743dea65cfd22c`
 **Test script hash:** `509aa357d6374c45492c15fae800fed1f91194d0`
 **Devvit CLI at verify:** 0.13.3
