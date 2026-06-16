@@ -319,7 +319,7 @@ export function register(app: Hono): void {
       return c.json<UiResponse>({
         showToast: cancelled
           ? { text: 'Response posted (verify it appeared).', appearance: 'neutral' }
-          : { text: 'Failed to send response.', appearance: 'critical' },
+          : { text: 'Failed to send response.', appearance: 'neutral' },
       });
     }
   });

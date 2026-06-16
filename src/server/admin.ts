@@ -61,7 +61,7 @@ export function register(app: Hono): void {
             if (typeof def.defaultValue === 'number') {
               castedValue = Number(val);
             } else if (typeof def.defaultValue === 'boolean') {
-              castedValue = val === 'true' || val === true || (typeof val === 'string' ? val.toLowerCase() === 'true' : (val as unknown) === true);
+              castedValue = val === 'true' || val.toLowerCase() === 'true';
             } else {
               castedValue = String(val);
             }

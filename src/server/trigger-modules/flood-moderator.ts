@@ -183,7 +183,7 @@ export async function runQuotaCheck(event: OnPostSubmitRequest): Promise<void> {
       const notice = responseText + formatSignature(rawSignature);
       const reply = await fullPost.addComment({ text: notice });
       try {
-        await reply.distinguish({ isSticky: true });
+        await reply.distinguish(true);
         log.info('Posted and distinguished removal comment', { postId, commentId: reply.id });
       } catch (err) {
         log.warn('Could not distinguish flood moderator comment', { postId, error: (err as Error).message });
@@ -224,7 +224,7 @@ export async function runOnPostDelete(event: OnPostDeleteRequest): Promise<void>
     return;
   }
 
-  const postId = event.postId ?? event.post?.id;
+  const postId = event.postId;
   if (!postId) {
     return;
   }

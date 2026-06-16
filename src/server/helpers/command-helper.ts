@@ -34,7 +34,8 @@ async function parseAndDispatch(
   if (matches.length === 0) return;
 
   // Guard against duplicate command dispatch on the same content (handles platform retry delivery)
-  const contentId = contentType === 'comment' ? event.comment?.id : event.post?.id;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const contentId = contentType === 'comment' ? (event as any).comment?.id : event.post?.id;
   if (contentId) {
     const claimed = await redis.set(`bot:cmd:${contentId}`, '1', { nx: true });
     if (!claimed) return; // duplicate trigger delivery on same comment/post
