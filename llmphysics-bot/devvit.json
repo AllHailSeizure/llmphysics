@@ -1,0 +1,345 @@
+{
+  "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
+  "name": "llmphysics-bot",
+  "marketingAssets": {
+    "icon": "assets/icon.png"
+  },
+  "server": {
+    "entry": "index.cjs"
+  },
+  "dev":{
+    "subreddit": "llmphysics_dev"
+  },
+  "permissions": {
+    "http": {
+      "domains": ["en.wikipedia.org", "generativelanguage.googleapis.com", "zenodo.org", "eimdgqymjwfljtapnuyl.supabase.co"]
+    },
+    "redis": true,
+    "reddit": {
+      "enable": true,
+      "asUser": ["SUBMIT_COMMENT"],
+      "scope": "moderator"
+    }
+    
+  },
+  "triggers": {
+    "onAppInstall": "/internal/triggers/app-install",
+    "onAppUpgrade": "/internal/triggers/app-upgrade",
+    "onPostSubmit": "/internal/triggers/post-submit",
+    "onPostFlairUpdate": "/internal/triggers/post-flair-update",
+    "onCommentCreate": "/internal/triggers/comment-create",
+    "onPostReport": "/internal/triggers/post-report",
+    "onCommentReport": "/internal/triggers/comment-report",
+    "onModAction": "/internal/triggers/mod-action",
+    "onPostDelete": "/internal/triggers/post-delete",
+    "onModMail": "/internal/triggers/mod-mail"
+  },
+  "scheduler": {
+    "tasks": {
+      "pdf-review-poll": {
+        "endpoint": "/internal/scheduler/pdf-review-poll",
+        "cron": "*/5 * * * *"
+      }
+    }
+  },
+  "menu": {
+    "items": [
+      {
+        "label": "Request Adversarial LLM Review",
+        "description": "Request LLM review of your post. Includes linked content.",
+        "forUserType": "user",
+        "location": "post",
+        "endpoint": "/internal/menu/adversarial-review"
+      },
+      {
+        "label": "Chain Mop",
+        "description": "Remove and/or lock this comment chain",
+        "forUserType": "moderator",
+        "location": "comment",
+        "endpoint": "/internal/menu/chain-mop"
+      },
+      {
+        "label": "Saved Responses",
+        "description": "Comment with with a canned response.",
+        "forUserType": "moderator",
+        "location": ["comment", "post"],
+        "endpoint": "/internal/menu/apply-saved-response",
+        "postFilter": "none"
+      },
+      {
+        "label": "Saved Responses",
+        "description": "Add, edit, or delete saved general responses",
+        "forUserType": "moderator",
+        "location": "subreddit",
+        "endpoint": "/internal/menu/saved-responses",
+        "postFilter": "none"
+      },
+      {
+        "label": "Flood Quota",
+        "description": "Check a user's flood quota status.",
+        "forUserType": "moderator",
+        "location": "subreddit",
+        "endpoint": "/internal/menu/quota-viewer"
+      },
+      {
+        "label": "LLM Reviewer Settings",
+        "description": "Manage LLM reviewer settings and clear review locks.",
+        "forUserType": "moderator",
+        "location": "subreddit",
+        "endpoint": "/internal/menu/bot-settings-adversarial"
+      }
+    ]
+  },
+  "forms": {
+    "chain-mop":                  "/internal/forms/chain-mop",
+    "saved-response-manage":      "/internal/forms/saved-response/manage",
+    "saved-response-select":      "/internal/forms/saved-response/step2",
+    "saved-response-apply":       "/internal/forms/saved-response/apply",
+    "saved-response-add":         "/internal/forms/saved-response/add",
+    "saved-response-edit-select": "/internal/forms/saved-response/edit-select",
+    "saved-response-edit-apply":  "/internal/forms/saved-response/edit-apply",
+    "saved-response-delete":      "/internal/forms/saved-response/delete",
+    "quota-viewer-search":        "/internal/forms/quota-viewer-search",
+    "quota-viewer-result":        "/internal/forms/quota-viewer-result",
+    "bot-settings-adversarial":   "/internal/forms/bot-settings-adversarial",
+    "adversarial-no-link":        "/internal/forms/adversarial-no-link",
+    "adversarial-multi-link":     "/internal/forms/adversarial-multi-link"
+  },
+  "settings": {
+    "global": {
+      "geminiApiKey": {
+        "type": "string",
+        "label": "Gemini API key",
+        "helpText": "Google Gemini API key used by the !define command for term resolution.",
+        "isSecret": true
+      },
+      "supabaseUrl": {
+        "type": "string",
+        "label": "Supabase project URL",
+        "helpText": "https://YOUR_PROJECT.supabase.co — used for the async PDF review queue.",
+        "isSecret": false
+      },
+      "supabaseServiceRoleKey": {
+        "type": "string",
+        "label": "Supabase service role key",
+        "helpText": "Service role key for the review_jobs table. Keep secret.",
+        "isSecret": true
+      },
+      "supabaseServiceKey": {
+        "type": "string",
+        "label": "Supabase service key",
+        "helpText": "Service key for writing bot logs to the bot_logs table. Keep secret.",
+        "isSecret": true
+      }
+    },
+    "subreddit": {
+      "botSignature": {
+        "type": "paragraph",
+        "label": "General — Bot signature",
+        "helpText": "Appended to all bot comments. Leave blank for no signature.",
+        "defaultValue": "I am a bot. This action was performed automatically. Contact the moderators if you have questions."
+      },
+      "depthCap": {
+        "type": "number",
+        "label": "Depth Cap — Maximum comment depth",
+        "helpText": "Lock comment chains that reach this depth. Set to 0 to disable. Default: 10.",
+        "defaultValue": 10
+      },
+      "depthCapResponse": {
+        "type": "paragraph",
+        "label": "Depth Cap Moderation — Depth cap triggered comment",
+        "helpText": "Commented when a comment reaches theh maximum depth cap."
+      },
+      "depthCapReport": {
+        "type": "boolean",
+        "label": "Depth Cap — Submit report to mod queue",
+        "helpText": "Submit the triggered comment as a report when the depth cap fires. Disable to prevent mod queue clogging.",
+        "defaultValue": true
+      },
+      "floodAssistantResponse": {
+        "type": "paragraph",
+        "label": "Flood Assistant — Flood assistant triggered comment",
+        "helpText": "Commented when the flood assistant is triggered."
+      },
+      "floodAssistantMaxPosts": {
+        "type": "number",
+        "label": "Flood Assistant — Max posts",
+        "helpText": "Maximum number of posts allowed within the time window. Default: 1.",
+        "defaultValue": 1
+      },
+      "floodAssistantWindowHours": {
+        "type": "number",
+        "label": "Flood Assistant — Window (hours)",
+        "helpText": "Time window in hours. Default: 24.",
+        "defaultValue": 24
+      },
+      "floodAssistantIgnoreModerators": {
+        "type": "boolean",
+        "label": "Flood Assistant — Ignore moderators",
+        "helpText": "If enabled, posts by moderators will not be removed.",
+        "defaultValue": true
+      },
+      "floodAssistantIgnoreContributors": {
+        "type": "boolean",
+        "label": "Flood Assistant — Ignore contributors",
+        "helpText": "If enabled, posts by approved submitters will not be removed.",
+        "defaultValue": true
+      },
+      "floodAssistantIgnoreAutoRemoved": {
+        "type": "boolean",
+        "label": "Flood Assistant — Ignore auto-removed posts",
+        "helpText": "If enabled, posts that are immediately removed will not count towards the quota.",
+        "defaultValue": true
+      },
+      "floodAssistantIgnoreRemoved": {
+        "type": "boolean",
+        "label": "Flood Assistant — Ignore moderator-removed posts",
+        "helpText": "If enabled, posts removed by moderators will not count towards the quota.",
+        "defaultValue": true
+      },
+      "floodAssistantIgnoreDeleted": {
+        "type": "boolean",
+        "label": "Flood Assistant — Ignore deleted posts",
+        "helpText": "If enabled, posts deleted by the author will not count towards the quota.",
+        "defaultValue": true
+      },
+      "selfResponseResponse": {
+        "type": "paragraph",
+        "label": "Self-Response Moderator — Self-response triggered comment",
+        "helpText": "Commented when a user responds to their own post."
+      },
+      "selfResponseIgnoreModerators": {
+        "type": "boolean",
+        "label": "Self-Response Moderator — Ignore moderators",
+        "helpText": "If enabled, the self-response rule will not apply to moderators.",
+        "defaultValue": true
+      },
+      "selfResponseIgnoreContributors": {
+        "type": "boolean",
+        "label": "Self-Response Moderator — Ignore approved submitters",
+        "helpText": "If enabled, the self-response rule will not apply to approved submitters.",
+        "defaultValue": true
+      },
+      "depthCapModEnabled": {
+        "type": "boolean",
+        "label": "Depth Cap — Enable",
+        "helpText": "Enable or disable the depth cap module.",
+        "defaultValue": true
+      },
+      "depthCapIgnoreModerators": {
+        "type": "boolean",
+        "label": "Depth Cap — Ignore moderators",
+        "helpText": "Moderators are exempt from the depth cap.",
+        "defaultValue": true
+      },
+      "depthCapIgnoreContributors": {
+        "type": "boolean",
+        "label": "Depth Cap — Ignore approved submitters",
+        "helpText": "Approved submitters are exempt from the depth cap.",
+        "defaultValue": true
+      },
+      "floodModEnabled": {
+        "type": "boolean",
+        "label": "Flood Moderator — Enable",
+        "helpText": "Enable or disable the flood moderator.",
+        "defaultValue": true
+      },
+      "selfResponseModEnabled": {
+        "type": "boolean",
+        "label": "Self-Response Moderator — Enable",
+        "helpText": "Enable or disable the self-response moderator.",
+        "defaultValue": true
+      },
+      "lengthModEnabled": {
+        "type": "boolean",
+        "label": "Length Moderator — Enable",
+        "helpText": "Enable or disable the length moderator.",
+        "defaultValue": true
+      },
+      "lengthModFlairId": {
+        "type": "string",
+        "label": "Length Moderator — Restricted flair template ID",
+        "helpText": "Posts with this flair are subject to the maximum length limit. Leave blank to disable."
+      },
+      "lengthModMaxUnhostedLength": {
+        "type": "number",
+        "label": "Length Moderator — Max unhosted length (characters)",
+        "helpText": "Maximum character count for posts with the restricted flair. 0 = disabled.",
+        "defaultValue": 0
+      },
+      "lengthModMinHostedLength": {
+        "type": "number",
+        "label": "Length Moderator — Min hosted length (characters)",
+        "helpText": "Minimum character count for link posts. 0 = disabled.",
+        "defaultValue": 0
+      },
+      "lengthModMaxUnhostedComment": {
+        "type": "paragraph",
+        "label": "Length Moderator — Over-length removal message",
+        "helpText": "Posted when a post exceeds the maximum length for its flair."
+      },
+      "lengthModMinHostedComment": {
+        "type": "paragraph",
+        "label": "Length Moderator — Under-length removal message",
+        "helpText": "Posted when a link post is below the minimum length."
+      },
+      "mopToolEnabled": {
+        "type": "boolean",
+        "label": "Chain Mop — Enable",
+        "helpText": "Enable or disable the Chain Mop action.",
+        "defaultValue": true
+      },
+      "responseToolEnabled": {
+        "type": "boolean",
+        "label": "Saved Responses — Enable",
+        "helpText": "Enable or disable the Saved Responses action.",
+        "defaultValue": true
+      },
+      "defineCommandEnabled": {
+        "type": "boolean",
+        "label": "Define Command — Enable",
+        "helpText": "Enable or disable the !define command.",
+        "defaultValue": true
+      },
+      "defineCommandCategory": {
+        "type": "string",
+        "label": "Define Command — Subject category",
+        "helpText": "Category used for term disambiguation in the !define command.",
+        "defaultValue": "physics, mathematics, and AI"
+      },
+      "defineCommandSearchGrounding": {
+        "type": "boolean",
+        "label": "Define Command — Search grounding",
+        "helpText": "Enable Google Search grounding for the !define command.",
+        "defaultValue": true
+      },
+      "adversarialReviewerEnabled": {
+        "type": "boolean",
+        "label": "Adversarial Reviewer — Enable",
+        "helpText": "Enable or disable the Adversarial Reviewer action.",
+        "defaultValue": false
+      },
+      "adversarialReviewerFlairId": {
+        "type": "string",
+        "label": "Adversarial Reviewer — Required flair template ID",
+        "helpText": "If set, only posts with this flair can request a review. Leave blank to allow any post."
+      },
+      "adversarialReviewerStickyComment": {
+        "type": "boolean",
+        "label": "Adversarial Reviewer — Sticky review comment",
+        "helpText": "Sticky the review comment to the top of the post after posting.",
+        "defaultValue": false
+      },
+      "adversarialReviewerLockComment": {
+        "type": "boolean",
+        "label": "Adversarial Reviewer — Lock review comment",
+        "helpText": "Lock the review comment after posting.",
+        "defaultValue": false
+      }
+    }
+  },
+  "scripts": {
+    "build": "npm run build"
+  }
+}
+

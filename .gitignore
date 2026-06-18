@@ -1,0 +1,25 @@
+# Sensitive
+keys.env
+keys.txt
+.env
+*.local
+
+# Build output
+node_modules/
+dist/
+
+# Logs and transcripts
+cc-transcript.jsonl
+*.jsonl
+
+# Old workspace folders (not apps)
+Bingo/
+docs/
+Reference/
+
+# Devvit local state
+.devvit/
+
+# Framework runtime data
+.superpowers/
+.gemini/

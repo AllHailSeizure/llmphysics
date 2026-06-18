@@ -1,0 +1,72 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Devvit: Logs",
+            "detail": "Run logging for r/llmphysics_dev",
+            "type": "shell",
+            "command": "npx devvit logs r/llmphysics_dev",
+            "options": {
+                "cwd": "${workspaceFolder}/llmphysics-bot"
+            },
+            "presentation": {
+                "group": "devvit-view",
+                "panel": "dedicated",
+                "clear": true
+            },
+            "problemMatcher": [],
+            "group": "build"
+        },
+        {
+            "label": "Devvit: Playtest",
+            "detail": "Run a playtest",
+            "type": "shell",
+            "command": "..\\scripts\\playtest.ps1",
+            "options": {
+                "cwd": "${workspaceFolder}/llmphysics-bot"
+            },
+            "presentation": {
+                "group": "devvit-view",
+                "panel": "dedicated",
+                "focus": true,
+                "clear": true
+            },
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Devvit: Publish",
+            "detail": "Publish and bump v#",
+            "type": "shell",
+            "command": "..\\scripts\\publish.ps1",
+            "options": {
+                "cwd": "${workspaceFolder}/llmphysics-bot"
+            },
+            "presentation": {
+                "group": "devvit-view",
+                "panel": "dedicated",
+                "focus": true,
+                "clear": true
+            },
+            "problemMatcher": [],
+            "group": "build"
+        },
+        {
+            "label": "Kill port",
+            "detail": "Kill processes on port 5678",
+            "type": "shell",
+            "command": ".\\scripts\\close-port.ps1",
+            "options": {
+                "cwd": "${workspaceFolder}/llmphysics-bot"
+            },
+            "presentation": {
+                "group": "devvit-view",
+                "panel": "dedicated",
+                "focus": true,
+                "clear": true
+            },
+            "problemMatcher": []
+        }
+    ]
+}
+

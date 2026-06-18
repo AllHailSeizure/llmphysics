@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "devvit-mcp": {
+      "command": "C:\\Users\\nateb\\AppData\\Roaming\\fnm\\node-versions\\v20.20.2\\installation\\node.exe",
+      "args": [
+        "C:\\Users\\nateb\\AppData\\Roaming\\fnm\\node-versions\\v20.20.2\\installation\\node_modules\\@devvit\\mcp\\dist\\index.js"
+      ]
+    }
+  }
+}

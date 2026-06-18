@@ -1,0 +1,77 @@
+{
+  "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
+  "name": "llmphysics-bingo",
+  "marketingAssets": {
+    "icon": "assets/icon.png"
+  },
+  "server": {
+    "entry": "index.cjs"
+  },
+  "post": {
+    "dir": "dist/client",
+    "entrypoints": {
+      "default": {
+        "entry": "splash.html",
+        "inline": true,
+        "height": "regular"
+      },
+      "game": {
+        "entry": "game.html",
+        "height": "tall"
+      }
+    }
+  },
+  "dev": {
+    "subreddit": "llmphysics_dev"
+  },
+  "permissions": {
+    "http": {
+      "domains": ["generativelanguage.googleapis.com"]
+    },
+    "redis": true,
+    "reddit": {
+      "enable": true,
+      "asUser": ["SUBMIT_COMMENT", "SUBMIT_POST"],
+      "scope": "moderator"
+    }
+  },
+  "triggers": {
+    "onPostSubmit": "/internal/triggers/post-submit",
+    "onCommentCreate": "/internal/triggers/comment-create",
+    "onPostReport": "/internal/triggers/post-report",
+    "onCommentReport": "/internal/triggers/comment-report",
+    "onModAction": "/internal/triggers/mod-action"
+  },
+  "scheduler": {
+    "tasks": {
+      "bingo-batch-check": {
+        "endpoint": "/internal/scheduler/bingo-batch-check",
+        "cron": "0 * * * *"
+      }
+    }
+  },
+  "menu": {
+    "items": [
+      {
+        "label": "Create Bingo Post",
+        "description": "Manually create this week's bingo post.",
+        "forUserType": "moderator",
+        "location": "subreddit",
+        "endpoint": "/internal/menu/create-bingo-post"
+      }
+    ]
+  },
+  "settings": {
+    "global": {
+      "geminiApiKey": {
+        "type": "string",
+        "label": "Gemini API key",
+        "helpText": "Google Gemini API key for bingo tile validation.",
+        "isSecret": true
+      }
+    }
+  },
+  "scripts": {
+    "build": "npm run build"
+  }
+}

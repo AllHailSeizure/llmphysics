@@ -1,0 +1,35 @@
+{
+  "name": "llmphysics-bingo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "vite build && node tools/strip-sourcemaps.mjs",
+    "dev": "devvit playtest r/llmphysics_dev",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@devvit/web": "^0.13.4",
+    "@hono/node-server": "^2.0.0",
+    "devvit": "^0.13.4",
+    "hono": "^4.0.0",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6"
+  },
+  "devDependencies": {
+    "@devvit/shared-types": "^0.13.4",
+    "@devvit/start": "^0.13.4",
+    "@devvit/test": "^0.13.4",
+    "@types/node": "^20.0.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.2",
+    "esbuild": "^0.28.0",
+    "tsx": "^4.19.2",
+    "typescript": "5.8.3",
+    "vite": "^8.0.13",
+    "vitest": "^4.1.8"
+  }
+}

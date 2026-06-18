@@ -1,0 +1,89 @@
+{
+  "enableAllProjectMcpServers": true,
+  "env": {
+    "ENABLE_TOOL_SEARCH": "auto"
+  },
+  "enabledPlugins": {
+    "supabase@claude-plugins-official": true
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const chunks=[];process.stdin.on('data',d=>chunks.push(d));process.stdin.on('end',()=>{try{const j=JSON.parse(chunks.join(''));const f=j.tool_input.file_path||'';if(f.includes('llmphysics-bot')&&f.includes('/src/')&&f.endsWith('.ts')){const{execSync}=require('child_process');try{execSync('npm run build',{cwd:'d:/Reddit/Devvit/llmphysics-bot',stdio:'inherit',shell:true})}catch(e){process.exit(2)}}}catch(e){process.exit(0)}})\"",
+            "asyncRewake": true,
+            "statusMessage": "Building llmphysics-bot...",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(node:*)",
+      "Bash(npm:*)",
+      "Bash(npx:*)",
+      "Bash(devvit:*)",
+      "Bash(lsof:*)",
+      "Bash(pkill:*)",
+      "Bash(kill:*)",
+      "Bash(netstat:*)",
+      "Bash(ps:*)",
+      "Bash(pgrep:*)",
+      "Bash(timeout:*)",
+      "Bash(sleep:*)",
+      "Bash(date:*)",
+      "Bash(tee:*)",
+      "Bash(tail:*)",
+      "Bash(rm:*)",
+      "Bash(echo:*)",
+      "Bash(cat:*)",
+      "Bash(curl:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(mkdir:*)",
+      "Bash(head:*)",
+      "Bash(wc:*)",
+      "Bash(sort:*)",
+      "Bash(uniq:*)",
+      "Bash(tr:*)",
+      "Bash(cut:*)",
+      "PowerShell(Get-NetTCPConnection*)",
+      "PowerShell(Stop-Process*)",
+      "PowerShell(node *)",
+      "PowerShell(npm *)",
+      "PowerShell(npx *)",
+      "PowerShell(devvit *)",
+      "PowerShell(Get-Content *)",
+      "PowerShell(Set-Content *)",
+      "PowerShell(Invoke-RestMethod *)",
+      "PowerShell(Invoke-WebRequest *)",
+      "PowerShell(Write-Host *)",
+      "PowerShell(Write-Output *)",
+      "PowerShell(Write-Error *)",
+      "PowerShell(ConvertTo-Json*)",
+      "PowerShell(ConvertFrom-Json*)",
+      "PowerShell(Select-Object *)",
+      "PowerShell(Where-Object *)",
+      "PowerShell(ForEach-Object *)",
+      "PowerShell(Get-ChildItem *)",
+      "PowerShell(Test-Path *)",
+      "PowerShell(Join-Path *)",
+      "PowerShell(Push-Location *)",
+      "PowerShell(Pop-Location*)",
+      "PowerShell(New-Item *)",
+      "PowerShell(Remove-Item *)",
+      "PowerShell(Copy-Item *)",
+      "PowerShell(Move-Item *)",
+      "mcp__devvit-mcp__devvit_search",
+      "mcp__devvit-mcp__devvit_logs",
+      "mcp__plugin_supabase_supabase__get_logs"
+    ]
+  }
+}
