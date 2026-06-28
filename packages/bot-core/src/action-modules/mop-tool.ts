@@ -3,6 +3,7 @@ import { redis, reddit, settings } from '@devvit/web/server';
 import type { MenuItemRequest, UiResponse } from '@devvit/web/shared';
 import { logger, logZSet } from '../helpers/log-helper';
 import type { CommentId } from '../types';
+import { getBotConfig } from '../config';
 
 export const MODULE = {
   name: 'mop-tool',
@@ -103,7 +104,7 @@ export async function runChainMop(
         await reddit.addRemovalNote({
           itemIds: [targetId],
           reasonId: 'other',
-          modNote: `Chain removed by u/${by} via llmphysics-bot (${removed} comment${removed !== 1 ? 's' : ''})`,
+          modNote: `Chain removed by u/${by} via ${getBotConfig().botUsername} (${removed} comment${removed !== 1 ? 's' : ''})`,
         });
       } catch (err) {
         log.warn('Could not add removal note', { error: (err as Error).message });
