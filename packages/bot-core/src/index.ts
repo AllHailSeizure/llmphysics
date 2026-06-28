@@ -4,6 +4,7 @@ export { initBotCore } from './config';
 export * from './types';
 
 export { logger, logZSet } from './helpers/log-helper';
+export { getPaperFromUrl, callGeminiWithPdf } from './helpers/paper-fetch-helper';
 export { readSetting, writeSetting, readAllSettings, formatSignature } from './helpers/settings-helper';
 export { trackPost, markPostDeleted, markPostModRemoved, markPostAutoRemoved, evaluateFloodStatus } from './helpers/redis-helper';
 export { registerCommand, runOnComment, runOnPost } from './helpers/command-helper';
