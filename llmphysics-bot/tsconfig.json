@@ -13,7 +13,11 @@
     "skipLibCheck": true,
     "sourceMap": true,
     "declaration": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "paths": {
+      "@llmphysics/bot-core": ["../packages/bot-core/src/index.ts"],
+      "@llmphysics/bot-core/*": ["../packages/bot-core/src/*"]
+    }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

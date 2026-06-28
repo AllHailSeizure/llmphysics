@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@devvit/web": "^0.13.4",
+    "@llmphysics/bot-core": "*",
     "@hono/node-server": "^2.0.0",
     "devvit": "^0.13.4",
     "hono": "^4.0.0",
